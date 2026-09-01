@@ -87,6 +87,5 @@ from the service operator. See [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md).
 
 ## License
 
-All rights reserved. The code is public for portfolio review and educational
-inspection; reuse requires written permission.
-
+All rights reserved. The code may be shared with authorized portfolio reviewers
+for educational inspection; reuse requires written permission.
