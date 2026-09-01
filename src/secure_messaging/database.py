@@ -1,0 +1,107 @@
+import sqlite3
+from pathlib import Path
+
+SCHEMA_VERSION = 1
+
+SCHEMA = """
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS schema_versions (
+    version INTEGER PRIMARY KEY,
+    applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    email_normalized TEXT NOT NULL UNIQUE,
+    display_name TEXT NOT NULL CHECK(length(display_name) BETWEEN 1 AND 80),
+    password_record BLOB,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    disabled_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+    id_hash BLOB PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TEXT NOT NULL,
+    revoked_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS conversations (
+    id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL CHECK(kind IN ('direct', 'group')),
+    created_by TEXT NOT NULL REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS conversation_members (
+    conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    joined_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    left_at TEXT,
+    PRIMARY KEY (conversation_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS messages (
+    id TEXT PRIMARY KEY,
+    conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    sender_id TEXT NOT NULL REFERENCES users(id),
+    body TEXT NOT NULL CHECK(length(body) BETWEEN 1 AND 8000),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    edited_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS attachments (
+    id TEXT PRIMARY KEY,
+    message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    sender_id TEXT NOT NULL REFERENCES users(id),
+    filename TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL CHECK(size_bytes >= 0),
+    sha256 TEXT NOT NULL CHECK(length(sha256) = 64),
+    status TEXT NOT NULL CHECK(status IN (
+        'pending', 'verified', 'unverified', 'integrity_mismatch', 'quarantined'
+    )),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS audit_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    actor_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    event_type TEXT NOT NULL,
+    target_id TEXT,
+    outcome TEXT NOT NULL CHECK(outcome IN ('allowed', 'denied', 'error')),
+    occurred_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_created
+    ON messages(conversation_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_events_occurred
+    ON audit_events(occurred_at);
+"""
+
+
+class Database:
+    def __init__(self, path: str | Path) -> None:
+        self.path = Path(path)
+
+    def connect(self) -> sqlite3.Connection:
+        connection = sqlite3.connect(self.path)
+        connection.execute("PRAGMA foreign_keys = ON")
+        return connection
+
+    def initialize(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with self.connect() as connection:
+            connection.executescript(SCHEMA)
+            connection.execute(
+                "INSERT OR IGNORE INTO schema_versions(version) VALUES (?)",
+                (SCHEMA_VERSION,),
+            )
+
+    def table_names(self) -> set[str]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            ).fetchall()
+        return {row[0] for row in rows}
