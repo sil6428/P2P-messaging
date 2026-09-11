@@ -1,7 +1,7 @@
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 SCHEMA = """
 PRAGMA foreign_keys = ON;
@@ -74,10 +74,18 @@ CREATE TABLE IF NOT EXISTS audit_events (
     occurred_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS received_message_ids (
+    message_id TEXT PRIMARY KEY,
+    sender_signing_key BLOB NOT NULL,
+    received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_created
     ON messages(conversation_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_audit_events_occurred
     ON audit_events(occurred_at);
+CREATE INDEX IF NOT EXISTS idx_received_message_ids_received
+    ON received_message_ids(received_at);
 """
 
 
@@ -105,3 +113,23 @@ class Database:
                 "SELECT name FROM sqlite_master WHERE type = 'table'"
             ).fetchall()
         return {row[0] for row in rows}
+
+    def claim_message(self, message_id: str, sender_signing_key: bytes) -> bool:
+        """Persist a received identifier exactly once, including across restarts."""
+        with self.connect() as connection:
+            try:
+                connection.execute(
+                    """
+                    INSERT INTO received_message_ids(message_id, sender_signing_key)
+                    VALUES (?, ?)
+                    """,
+                    (message_id, sender_signing_key),
+                )
+            except sqlite3.IntegrityError:
+                return False
+        return True
+
+    def received_message_count(self) -> int:
+        with self.connect() as connection:
+            row = connection.execute("SELECT COUNT(*) FROM received_message_ids").fetchone()
+        return int(row[0])

@@ -29,6 +29,7 @@ def test_initialization_creates_expected_security_boundaries(tmp_path):
         "messages",
         "attachments",
         "audit_events",
+        "received_message_ids",
     }.issubset(database.table_names())
 
 
@@ -51,4 +52,3 @@ def test_foreign_keys_are_enabled_for_each_connection(tmp_path):
         enabled = connection.execute("PRAGMA foreign_keys").fetchone()[0]
 
     assert enabled == 1
-
