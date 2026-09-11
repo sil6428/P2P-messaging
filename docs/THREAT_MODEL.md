@@ -1,55 +1,53 @@
-# Initial Threat Model
+# Threat Model
 
-Status: foundation milestone. Revisit this document with every feature that
+Status: peer messaging milestone. Revisit this document with every feature that
 changes a trust boundary.
 
 ## Assets
 
-- account credentials and sessions;
-- message and attachment contents;
-- conversation membership;
-- attachment integrity metadata;
-- audit records and service availability.
+- device identity private keys and trusted peer cards;
+- message plaintext, ciphertext, and delivery acknowledgements;
+- peer endpoints and communication metadata;
+- replay records, future attachments, and service availability.
 
 ## Trust boundaries
 
-- browser or desktop client to messaging service;
-- messaging service to its database;
-- messaging service to the future attachment service;
-- authenticated user to another user's conversations;
-- service operator to stored plaintext.
+- identity file and the local operating-system account;
+- trusted peer card and the out-of-band fingerprint comparison;
+- one peer's TCP socket to the other peer's listener;
+- encrypted network envelope to delivered plaintext;
+- the future attachment service and local file storage.
 
 ## Initial attacker capabilities
 
-The design assumes an attacker may control a normal account, submit malformed
-input, guess identifiers, interrupt connections, replay client requests, or
-modify files in storage after upload. A passive network observer is expected to
-be limited by correctly configured TLS.
+The design assumes an attacker may observe, interrupt, reorder, replay, or alter
+network traffic; connect without a trusted identity; submit malformed or
+oversized frames; or modify a peer card in transit. A local attacker that can
+read a device's private identity file is outside the current protection model.
 
 ## Controls planned with their features
 
-- memory-hard password hashing, generic failures, session rotation, and login
-  throttling before accounts are enabled;
-- membership checks on every conversation operation;
-- bounded message, frame, and attachment sizes;
+- fingerprint comparison before a peer card is trusted;
+- signed peer cards and signed, authenticated-encryption envelopes;
+- recipient checks plus bounded message, frame, and future attachment sizes;
+- persistent message identifiers to reject replays after restart;
 - per-file SHA-256 manifests, pre-download re-hashing, post-download checking,
   and quarantine for integrity mismatches;
-- structured audit events that exclude passwords and message bodies;
+- structured local events that exclude private keys and message bodies;
 - automated negative tests for authorization and malformed inputs.
 
 ## Explicit non-goals for the current version
 
 - production deployment;
-- anonymous communication;
-- protection from a malicious or compromised service operator;
-- end-to-end encryption;
+- anonymous communication or traffic-analysis resistance;
+- forward secrecy, post-compromise security, or automatic key rotation;
+- protection after an endpoint or identity file is compromised;
 - malware detection or content-safety scanning;
 - guaranteed delivery under unbounded resource exhaustion.
 
 ## Security claims currently allowed
 
-The current repository may claim to have a documented threat model, a
-constraint-driven data schema, and automated foundation tests. It must not
-claim secure messaging, end-to-end encryption, production readiness, or an
-external audit until those claims are supported by implemented evidence.
-
+The current repository may claim encrypted, authenticated direct messages
+between peers whose fingerprints were verified separately. It must not claim a
+standard audited protocol, forward secrecy, compromise recovery, anonymity, or
+production readiness.

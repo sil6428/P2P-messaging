@@ -1,0 +1,61 @@
+# Peer Protocol v1
+
+Status: educational milestone. The protocol is intentionally small enough to
+review, but it has not been independently audited and is not ready for
+sensitive conversations.
+
+## Trust setup
+
+Each device owns two long-lived key pairs:
+
+- an Ed25519 key signs peer cards and message envelopes;
+- an X25519 key establishes a shared secret with a peer.
+
+A peer card contains a display name, both public keys, and a reachable
+`host:port` endpoint. The card is self-signed so accidental edits are detected.
+Users still have to compare the displayed signing-key fingerprint through a
+separate trusted channel. A valid self-signature does not prove who controls a
+key.
+
+## Message protection
+
+For each direct message, the sender:
+
+1. derives a directional key from the static X25519 shared secret with HKDF-SHA256;
+2. creates a fresh 96-bit random nonce;
+3. encrypts the UTF-8 message with ChaCha20-Poly1305;
+4. binds the protocol version, message identifier, sender, recipient, timestamp,
+   and nonce as authenticated additional data; and
+5. signs the authenticated header and ciphertext with Ed25519.
+
+The receiver checks the trusted peer card, envelope signature, intended
+recipient, timestamp format, message size, AEAD tag, and persistent replay
+record before delivering the plaintext. Acknowledgements use the same encrypted
+and signed envelope format and reference the accepted message identifier.
+
+Frames are four-byte big-endian length-prefixed JSON documents. Receivers reject
+frames larger than 64 KiB before allocating the payload.
+
+## Security properties and limits
+
+Implemented in this milestone:
+
+- confidentiality and integrity between two peers that already trust each
+  other's fingerprint;
+- sender authentication against the stored peer card;
+- recipient binding, bounded frames and messages, and persistent replay
+  detection;
+- encrypted acknowledgements so the sender can verify who accepted a message.
+
+Not implemented:
+
+- forward secrecy or post-compromise security;
+- automatic key changes, multi-device identity, groups, or account recovery;
+- NAT traversal, relays, or anonymous metadata;
+- encrypted message history or attachment transfer;
+- protection when either endpoint, its identity file, or its trusted-contact
+  directory is compromised.
+
+The project uses maintained primitives from `cryptography`; it does not claim to
+implement a standard secure-messaging protocol such as Signal's Double Ratchet.
+That should be a later, separately reviewed milestone.
