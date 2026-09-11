@@ -18,7 +18,7 @@ def create_app(database_path: str | Path = "secure-messaging.db") -> FastAPI:
     app = FastAPI(
         title="Secure Messaging Platform",
         version=__version__,
-        description="Work-in-progress foundation; not ready for private communication.",
+        description="Development status for the educational peer-messaging demo.",
         lifespan=lifespan,
     )
     app.state.database = database
@@ -29,12 +29,16 @@ def create_app(database_path: str | Path = "secure-messaging.db") -> FastAPI:
             "name": "Secure Messaging Platform",
             "version": __version__,
             "status": "development",
-            "available_features": ["schema", "health-check"],
-            "warning": "No authentication or messaging features are available yet.",
+            "available_features": [
+                "signed-peer-cards",
+                "encrypted-direct-messages",
+                "persistent-replay-protection",
+                "authenticated-acknowledgements",
+            ],
+            "warning": "Educational peer demo; not independently audited or production-ready.",
         }
 
     return app
 
 
 app = create_app()
-

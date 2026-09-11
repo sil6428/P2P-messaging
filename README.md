@@ -1,41 +1,32 @@
 # Secure Messaging Platform
 
-> **Work in progress.** The repository is being built in small, reviewable
-> milestones. It is not ready for private or sensitive conversations.
+> **Educational work in progress.** This project now supports a small encrypted
+> peer-to-peer demo. It is not independently audited or ready for sensitive use.
 
-A security-focused messaging service that will combine authenticated direct
-messages with verified file transfer. The final integration will show the
-receiver whether an attachment arrived intact, quarantine content when its
-digest does not match, and keep an auditable record of security-relevant
-events.
+A Python learning project for direct messages between two explicitly trusted
+peers. There is no central message server: one peer listens on a TCP endpoint and
+the other connects directly using a shared public peer card.
 
-The progression is deliberate:
+## What works
 
-1. [File Integrity Monitor](https://github.com/sil6428/file-integrity-monitor)
-   established hashing, baselines, and change detection.
-2. [Secure File Transfer](https://github.com/sil6428/secure-file-transfer)
-   applies authenticated TLS, resumable transfer, recipient isolation, and
-   end-to-end file-integrity verification.
-3. This project will combine those ideas with accounts, conversations,
-   real-time delivery, attachment status, and operational safeguards.
+- password-protected Ed25519 and X25519 device identities;
+- self-signed public peer cards with human-checkable fingerprints;
+- ChaCha20-Poly1305 message encryption with authenticated routing metadata;
+- Ed25519 envelope signatures and encrypted delivery acknowledgements;
+- 64 KiB frame limits, 4 KiB plaintext limits, recipient checks, and persistent
+  replay rejection;
+- tests for tampering, expired messages, wrong recipients, unknown peers,
+  oversized frames, replay attempts, and end-to-end delivery.
 
-## Current milestone: foundation
+Messages are end-to-end encrypted between the two demo peers, but the custom
+protocol does **not** provide forward secrecy, automatic key rotation, NAT
+traversal, multi-device support, or independent security assurance. Read
+[the protocol](docs/PROTOCOL.md) and [threat model](docs/THREAT_MODEL.md) before
+using it.
 
-The first milestone contains:
+## Install
 
-- a FastAPI application shell with an explicit development-status endpoint;
-- a versioned SQLite schema for users, sessions, conversations, messages,
-  attachments, and audit events;
-- foreign keys and constraints that encode the first data-boundary decisions;
-- automated tests for application status, schema creation, and idempotent
-  migrations;
-- an initial threat model and a milestone roadmap.
-
-There is intentionally no registration, login, messaging, or file upload yet.
-Those features will be added only when their security controls and tests can be
-added in the same milestone.
-
-## Run the foundation
+Requires Python 3.11 or newer.
 
 ```bash
 python -m venv .venv
@@ -47,43 +38,66 @@ python -m venv .venv
 source .venv/bin/activate
 
 python -m pip install -e ".[dev]"
-secure-messaging serve
 ```
 
-Open `http://127.0.0.1:8000/status`. The response deliberately reports
-`development`, so the current state cannot be mistaken for a completed secure
-product.
+## Try two peers locally
 
-Run the checks:
+The commands below use separate identities and ports so the complete exchange
+can run on one computer. Enter a different password for each identity and do not
+commit either `*.identity.json` file.
+
+```bash
+# Create Alice's private identity and public card
+secure-messaging identity init --name Alice \
+  --identity alice.identity.json --card alice.peer.json \
+  --endpoint 127.0.0.1:8765
+
+# Create Bob's private identity and public card
+secure-messaging identity init --name Bob \
+  --identity bob.identity.json --card bob.peer.json \
+  --endpoint 127.0.0.1:8766
+```
+
+Compare each card's fingerprint with its owner through a separate trusted
+channel. A self-signature only proves the card was not edited after creation; it
+does not prove the owner's identity.
+
+Start Bob's listener in terminal 1:
+
+```bash
+secure-messaging listen --identity bob.identity.json \
+  --trust alice.peer.json --database bob-state.db \
+  --host 127.0.0.1 --port 8766
+```
+
+Send from Alice in terminal 2:
+
+```bash
+secure-messaging send --identity alice.identity.json \
+  --peer bob.peer.json --message "hello Bob"
+```
+
+Bob sees the plaintext only after the trusted-sender, signature, recipient,
+timestamp, authenticated-encryption, and replay checks pass. Alice accepts
+delivery only after decrypting Bob's matching acknowledgement.
+
+## Development checks
 
 ```bash
 ruff check src tests
 pytest -q
 ```
 
-## Milestones
+The optional local status endpoint remains available with
+`secure-messaging serve` and reports the project's development limits.
 
-| Milestone | Deliverable | Status |
-|---|---|---|
-| 0 | Application shell, schema, threat model, tests | Complete |
-| 1 | Account creation, password hashing, session controls | Planned |
-| 2 | Authenticated direct messages and conversation access rules | Planned |
-| 3 | Real-time delivery, reconnect handling, offline queue | Planned |
-| 4 | Verified attachments using the secure-transfer pipeline | Planned |
-| 5 | Integrity warning states, quarantine, and audit views | Planned |
-| 6 | Rate limits, abuse cases, integration tests, deployment guide | Planned |
+## Collaborating
 
-The order can change when testing exposes a better dependency order. A commit
-should represent a real feature, test, design decision, or documented finding;
-the project will not use empty commits to simulate activity.
-
-## Security language
-
-Until a later milestone says otherwise, “secure” means the project is being
-designed with explicit security controls and tested failure cases. It does not
-mean end-to-end encrypted, independently audited, or production-ready. TLS
-protects network traffic from passive observers but does not hide plaintext
-from the service operator. See [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md).
+[CONTRIBUTING.md](CONTRIBUTING.md) lists substantial next pieces deliberately
+left for another contributor: contact verification state, a conversation UI,
+encrypted history, attachment integration, and protocol robustness. The current
+code provides interfaces and tests those features can build on without pretending
+the project is finished.
 
 ## License
 

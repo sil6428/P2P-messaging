@@ -4,7 +4,7 @@ from secure_messaging.app import create_app
 from secure_messaging.database import Database
 
 
-def test_status_identifies_incomplete_development_state(tmp_path):
+def test_status_identifies_available_peer_features_and_limits(tmp_path):
     app = create_app(tmp_path / "messages.db")
     with TestClient(app) as client:
         response = client.get("/status")
@@ -12,8 +12,8 @@ def test_status_identifies_incomplete_development_state(tmp_path):
     assert response.status_code == 200
     payload = response.json()
     assert payload["status"] == "development"
-    assert "messaging" not in payload["available_features"]
-    assert "No authentication" in payload["warning"]
+    assert "encrypted-direct-messages" in payload["available_features"]
+    assert "not independently audited" in payload["warning"]
 
 
 def test_initialization_creates_expected_security_boundaries(tmp_path):
