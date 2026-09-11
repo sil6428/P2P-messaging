@@ -4,13 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "affan-secure-messaging"
-version = "0.0.1"
+version = "0.1.0"
 description = "Work-in-progress security-focused messaging platform"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
 authors = [{ name = "Affan Muhammad Shaikh" }]
 dependencies = [
+  "cryptography>=45,<51",
   "fastapi>=0.115,<1",
   "uvicorn[standard]>=0.30,<1",
 ]

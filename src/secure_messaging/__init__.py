@@ -1,4 +1,3 @@
-"""Secure messaging platform foundation."""
+"""Educational peer-to-peer secure messaging platform."""
 
-__version__ = "0.0.1"
-
+__version__ = "0.1.0"
