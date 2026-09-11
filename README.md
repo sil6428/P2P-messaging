@@ -1,4 +1,6 @@
-# Secure Messaging Platform
+# P2P Messaging
+
+[![Quality checks](https://github.com/sil6428/P2P-messaging/actions/workflows/quality.yml/badge.svg)](https://github.com/sil6428/P2P-messaging/actions/workflows/quality.yml)
 
 > **Educational work in progress.** This project now supports a small encrypted
 > peer-to-peer demo. It is not independently audited or ready for sensitive use.
@@ -91,11 +93,18 @@ pytest -q
 The optional local status endpoint remains available with
 `secure-messaging serve` and reports the project's development limits.
 
+The current **22-test** suite covers the CLI and status endpoint, identity
+protection, envelope signatures, authenticated encryption, expiration,
+recipient validation, replay persistence, bounded frames, acknowledgements,
+and end-to-end local delivery.
+
 ## Collaborating
 
 [CONTRIBUTING.md](CONTRIBUTING.md) lists substantial next pieces deliberately
 left for another contributor: contact verification state, a conversation UI,
-encrypted history, attachment integration, and protocol robustness. The current
+encrypted history, integration with the separate
+[Secure File Transfer](https://github.com/sil6428/secure-file-transfer) project,
+and protocol robustness. The current
 code provides interfaces and tests those features can build on without pretending
 the project is finished.
 
