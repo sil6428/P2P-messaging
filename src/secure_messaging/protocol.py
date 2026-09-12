@@ -15,6 +15,7 @@ from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PublicKey
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
+from secure_messaging.attachments import AttachmentError, AttachmentReference
 from secure_messaging.identity import Identity, PeerCard
 
 PROTOCOL_VERSION = 1
@@ -153,6 +154,7 @@ class DecryptedMessage:
     kind: Literal["message", "ack"]
     body: str
     reply_to: str | None
+    attachment: AttachmentReference | None = None
 
 
 def encrypt_message(
@@ -163,6 +165,7 @@ def encrypt_message(
     kind: Literal["message", "ack"] = "message",
     reply_to: str | None = None,
     sent_at: datetime | None = None,
+    attachment: AttachmentReference | None = None,
 ) -> EncryptedEnvelope:
     recipient.verify()
     body_bytes = body.encode("utf-8")
@@ -172,6 +175,8 @@ def encrypt_message(
         raise ProtocolError("Unsupported message kind.")
     if kind == "ack" and not reply_to:
         raise ProtocolError("Acknowledgements must reference a message.")
+    if attachment is not None and kind != "message":
+        raise ProtocolError("Only direct messages may carry an attachment reference.")
 
     timestamp = (sent_at or datetime.now(UTC)).astimezone(UTC)
     envelope = EncryptedEnvelope(
@@ -185,7 +190,14 @@ def encrypt_message(
         ciphertext=b"",
         signature=b"",
     )
-    plaintext = _canonical_json({"body": body, "kind": kind, "reply_to": reply_to})
+    plaintext = _canonical_json(
+        {
+            "body": body,
+            "kind": kind,
+            "reply_to": reply_to,
+            "attachment": attachment.to_dict() if attachment is not None else None,
+        }
+    )
     key = _derive_key(
         sender,
         recipient,
@@ -259,6 +271,7 @@ def decrypt_message(
         kind = payload["kind"]
         body = payload["body"]
         reply_to = payload["reply_to"]
+        raw_attachment = payload.get("attachment")
     except (json.JSONDecodeError, KeyError, TypeError, UnicodeDecodeError) as exc:
         raise ProtocolError("Decrypted message has an invalid structure.") from exc
     if kind not in {"message", "ack"} or not isinstance(body, str):
@@ -267,6 +280,14 @@ def decrypt_message(
         raise ProtocolError("Decrypted message has an invalid size.")
     if reply_to is not None and not isinstance(reply_to, str):
         raise ProtocolError("Reply reference is invalid.")
+    attachment: AttachmentReference | None = None
+    if raw_attachment is not None:
+        if kind != "message" or not isinstance(raw_attachment, dict):
+            raise ProtocolError("Attachment reference is invalid.")
+        try:
+            attachment = AttachmentReference.from_dict(raw_attachment)
+        except AttachmentError as exc:
+            raise ProtocolError("Attachment reference is invalid.") from exc
     return DecryptedMessage(
         message_id=envelope.message_id,
         sender_name=sender.display_name,
@@ -274,4 +295,5 @@ def decrypt_message(
         kind=kind,
         body=body,
         reply_to=reply_to,
+        attachment=attachment,
     )

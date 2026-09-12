@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from secure_messaging.attachments import AttachmentReference
 from secure_messaging.identity import Identity, IdentityError, PeerCard
 from secure_messaging.protocol import (
     AuthenticationError,
@@ -105,3 +106,32 @@ def test_message_size_is_bounded():
 
     with pytest.raises(ProtocolError, match="4096"):
         encrypt_message(alice, bob_card, "x" * 4097)
+
+
+def test_attachment_reference_survives_encryption_round_trip():
+    alice, alice_card, bob, bob_card = make_peers()
+    reference = AttachmentReference(filename="report.pdf", size_bytes=1024, sha256="ab" * 32)
+
+    envelope = encrypt_message(alice, bob_card, "see attached", attachment=reference)
+    message = decrypt_message(bob, alice_card, envelope)
+
+    assert message.attachment == reference
+
+
+def test_message_without_attachment_decodes_with_none():
+    alice, alice_card, bob, bob_card = make_peers()
+
+    envelope = encrypt_message(alice, bob_card, "no attachment here")
+    message = decrypt_message(bob, alice_card, envelope)
+
+    assert message.attachment is None
+
+
+def test_acknowledgements_cannot_carry_an_attachment():
+    alice, _, _, bob_card = make_peers()
+    reference = AttachmentReference(filename="report.pdf", size_bytes=1024, sha256="ab" * 32)
+
+    with pytest.raises(ProtocolError, match="attachment"):
+        encrypt_message(
+            alice, bob_card, "accepted", kind="ack", reply_to="abc", attachment=reference
+        )
