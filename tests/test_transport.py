@@ -93,6 +93,31 @@ def test_listener_rejects_untrusted_sender(tmp_path):
     asyncio.run(scenario())
 
 
+def test_listener_rejects_sender_over_the_rate_limit(tmp_path):
+    async def scenario():
+        alice = Identity.create("Alice")
+        bob = Identity.create("Bob")
+        alice_card = alice.peer_card("127.0.0.1:9001")
+        server = PeerServer(
+            bob,
+            [alice_card],
+            Database(tmp_path / "bob.db"),
+            rate_limit_messages=2,
+            rate_limit_window_seconds=60.0,
+        )
+        await server.start("127.0.0.1", 0)
+        try:
+            bob_card = bob.peer_card(f"127.0.0.1:{server.port}")
+            await send_message(alice, bob_card, "one")
+            await send_message(alice, bob_card, "two")
+            with pytest.raises(DeliveryRejected, match="rejected"):
+                await send_message(alice, bob_card, "three")
+        finally:
+            await server.close()
+
+    asyncio.run(scenario())
+
+
 def test_listener_rejects_replayed_envelope(tmp_path):
     async def exchange_raw(port: int, payload: bytes) -> bytes:
         reader, writer = await asyncio.open_connection("127.0.0.1", port)

@@ -4,8 +4,11 @@ import asyncio
 import inspect
 import json
 import struct
+import time
+from collections import deque
 from collections.abc import Awaitable, Callable, Iterable
 
+from secure_messaging.attachments import AttachmentReference
 from secure_messaging.database import Database
 from secure_messaging.identity import Identity, PeerCard, parse_endpoint
 from secure_messaging.protocol import (
@@ -18,7 +21,29 @@ from secure_messaging.protocol import (
 
 MAX_FRAME_BYTES = 64 * 1024
 DEFAULT_TIMEOUT_SECONDS = 10.0
+READ_TIMEOUT_SECONDS = 10.0
+DEFAULT_RATE_LIMIT_MESSAGES = 30
+DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 60.0
 MessageHandler = Callable[[DecryptedMessage], Awaitable[None] | None]
+
+
+class _RateLimiter:
+    """A per-key sliding-window limiter so one trusted peer cannot flood the listener."""
+
+    def __init__(self, max_events: int, window_seconds: float) -> None:
+        self.max_events = max_events
+        self.window_seconds = window_seconds
+        self._events: dict[bytes, deque[float]] = {}
+
+    def allow(self, key: bytes) -> bool:
+        now = time.monotonic()
+        bucket = self._events.setdefault(key, deque())
+        while bucket and now - bucket[0] > self.window_seconds:
+            bucket.popleft()
+        if len(bucket) >= self.max_events:
+            return False
+        bucket.append(now)
+        return True
 
 
 class TransportError(ConnectionError):
@@ -51,6 +76,9 @@ class PeerServer:
         trusted_peers: Iterable[PeerCard],
         database: Database,
         on_message: MessageHandler | None = None,
+        *,
+        rate_limit_messages: int = DEFAULT_RATE_LIMIT_MESSAGES,
+        rate_limit_window_seconds: float = DEFAULT_RATE_LIMIT_WINDOW_SECONDS,
     ) -> None:
         self.identity = identity
         self.database = database
@@ -60,6 +88,7 @@ class PeerServer:
         for peer in trusted_peers:
             peer.verify()
             self._trusted_peers[peer.signing_key] = peer
+        self._rate_limiter = _RateLimiter(rate_limit_messages, rate_limit_window_seconds)
 
     async def start(self, host: str, port: int) -> None:
         self.database.initialize()
@@ -101,11 +130,13 @@ class PeerServer:
         writer: asyncio.StreamWriter,
     ) -> None:
         try:
-            raw_envelope = await read_frame(reader)
+            raw_envelope = await asyncio.wait_for(read_frame(reader), READ_TIMEOUT_SECONDS)
             envelope = EncryptedEnvelope.from_json(raw_envelope)
             sender = self._trusted_peers.get(envelope.sender_signing_key)
             if sender is None:
                 raise DeliveryRejected("Unknown peer.")
+            if not self._rate_limiter.allow(sender.signing_key):
+                raise DeliveryRejected("Peer exceeded the message rate limit.")
             message = decrypt_message(self.identity, sender, envelope)
             if message.kind != "message":
                 raise DeliveryRejected("Only direct messages are accepted.")
@@ -128,6 +159,7 @@ class PeerServer:
             ConnectionError,
             OSError,
             ProtocolError,
+            TimeoutError,
             TransportError,
             ValueError,
         ):
@@ -146,10 +178,11 @@ async def send_message(
     body: str,
     *,
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+    attachment: AttachmentReference | None = None,
 ) -> DecryptedMessage:
     peer.verify()
     host, port = parse_endpoint(peer.endpoint)
-    envelope = encrypt_message(identity, peer, body)
+    envelope = encrypt_message(identity, peer, body, attachment=attachment)
 
     async def exchange() -> DecryptedMessage:
         try:
