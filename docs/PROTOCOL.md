@@ -45,14 +45,22 @@ Implemented in this milestone:
 - sender authentication against the stored peer card;
 - recipient binding, bounded frames and messages, and persistent replay
   detection;
-- encrypted acknowledgements so the sender can verify who accepted a message.
+- encrypted acknowledgements so the sender can verify who accepted a message;
+- an optional attachment reference (filename, size, SHA-256) bound into the
+  same signed, encrypted envelope, so a file transferred out-of-band (by the
+  separate secure-file-transfer project) can be integrity-checked on arrival;
+- per-peer rate limiting and a per-connection read timeout at the listener;
+- an encrypted local message history, locked by its own password;
+- a contact book that tracks whether each imported peer card's fingerprint was
+  verified out-of-band, and excludes unverified contacts from the trust list
+  used by `listen` unless explicitly overridden.
 
 Not implemented:
 
 - forward secrecy or post-compromise security;
 - automatic key changes, multi-device identity, groups, or account recovery;
 - NAT traversal, relays, or anonymous metadata;
-- encrypted message history or attachment transfer;
+- the file-transfer bytes themselves (only the digest reference travels here);
 - protection when either endpoint, its identity file, or its trusted-contact
   directory is compromised.
 

@@ -13,12 +13,20 @@ the other connects directly using a shared public peer card.
 
 - password-protected Ed25519 and X25519 device identities;
 - self-signed public peer cards with human-checkable fingerprints;
+- a local contact book that tracks whether each imported card's fingerprint was
+  verified out-of-band, and keeps unverified contacts out of the trust list;
 - ChaCha20-Poly1305 message encryption with authenticated routing metadata;
 - Ed25519 envelope signatures and encrypted delivery acknowledgements;
-- 64 KiB frame limits, 4 KiB plaintext limits, recipient checks, and persistent
-  replay rejection;
+- an interactive two-way `chat` session, alongside the one-shot `send`/`listen`
+  commands;
+- an encrypted local message history, locked by its own password;
+- attachment digest references (filename, size, SHA-256) bound into a message
+  so a file moved out-of-band can be verified and quarantined on mismatch;
+- 64 KiB frame limits, 4 KiB plaintext limits, recipient checks, persistent
+  replay rejection, per-peer rate limiting, and per-connection read timeouts;
 - tests for tampering, expired messages, wrong recipients, unknown peers,
-  oversized frames, replay attempts, and end-to-end delivery.
+  oversized frames, replay attempts, rate limits, malformed/fuzzed envelopes,
+  and end-to-end delivery.
 
 Messages are end-to-end encrypted between the two demo peers, but the custom
 protocol does **not** provide forward secrecy, automatic key rotation, NAT
@@ -93,20 +101,43 @@ pytest -q
 The optional local status endpoint remains available with
 `secure-messaging serve` and reports the project's development limits.
 
-The current **22-test** suite covers the CLI and status endpoint, identity
+The current **63-test** suite covers the CLI and status endpoint, identity
 protection, envelope signatures, authenticated encryption, expiration,
 recipient validation, replay persistence, bounded frames, acknowledgements,
-and end-to-end local delivery.
+end-to-end local delivery, contact verification state, encrypted local
+history, attachment digest binding, per-peer rate limiting, and fuzzed
+envelope parsing.
+
+## Contact verification, history, and attachments
+
+```bash
+# Import a peer card (unverified until you compare fingerprints out-of-band)
+secure-messaging contacts import bob.peer.json --contacts contacts.db
+secure-messaging contacts verify "AB12 CD34" --contacts contacts.db
+secure-messaging contacts list --contacts contacts.db
+
+# Listen using verified contacts instead of --trust files
+secure-messaging listen --identity alice.identity.json --contacts contacts.db \
+  --database alice-state.db --history alice-history.db
+
+# Two-way interactive session instead of one-shot send/listen
+secure-messaging chat --identity alice.identity.json --peer bob.peer.json
+
+# Bind a file's digest to a message, then verify it after it arrives out-of-band
+secure-messaging send --identity alice.identity.json --peer bob.peer.json \
+  --message "see attached" --attach report.pdf
+secure-messaging verify-attachment reference.json downloaded-report.pdf
+```
 
 ## Collaborating
 
-[CONTRIBUTING.md](CONTRIBUTING.md) lists substantial next pieces deliberately
-left for another contributor: contact verification state, a conversation UI,
-encrypted history, integration with the separate
-[Secure File Transfer](https://github.com/sil6428/secure-file-transfer) project,
-and protocol robustness. The current
-code provides interfaces and tests those features can build on without pretending
-the project is finished.
+[CONTRIBUTING.md](CONTRIBUTING.md) tracks what is still open for another
+contributor: failure recovery under full-disk and mid-transfer disconnect
+conditions, structured local audit events, and full integration with the
+separate [Secure File Transfer](https://github.com/sil6428/secure-file-transfer)
+project (this repository only carries the digest reference, not the file
+bytes). The current code provides interfaces and tests those pieces can build
+on without pretending the project is finished.
 
 ## License
 

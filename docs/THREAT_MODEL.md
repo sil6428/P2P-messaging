@@ -8,7 +8,8 @@ changes a trust boundary.
 - device identity private keys and trusted peer cards;
 - message plaintext, ciphertext, and delivery acknowledgements;
 - peer endpoints and communication metadata;
-- replay records, future attachments, and service availability.
+- replay records, attachment digest references, encrypted local history, and
+  service availability.
 
 ## Trust boundaries
 
@@ -16,7 +17,9 @@ changes a trust boundary.
 - trusted peer card and the out-of-band fingerprint comparison;
 - one peer's TCP socket to the other peer's listener;
 - encrypted network envelope to delivered plaintext;
-- the future attachment service and local file storage.
+- an attachment's digest reference (sent over this protocol) versus the file
+  bytes themselves (moved by the separate secure-file-transfer project);
+- the encrypted local history store and its own, separate password.
 
 ## Initial attacker capabilities
 
@@ -25,16 +28,30 @@ network traffic; connect without a trusted identity; submit malformed or
 oversized frames; or modify a peer card in transit. A local attacker that can
 read a device's private identity file is outside the current protection model.
 
-## Controls planned with their features
+## Controls implemented
 
-- fingerprint comparison before a peer card is trusted;
+- fingerprint comparison before a peer card is trusted; the contact book stores
+  imported cards as unverified until that comparison happens and excludes them
+  from the automatic trust list until then;
 - signed peer cards and signed, authenticated-encryption envelopes;
-- recipient checks plus bounded message, frame, and future attachment sizes;
+- recipient checks plus bounded message and frame sizes;
 - persistent message identifiers to reject replays after restart;
-- per-file SHA-256 manifests, pre-download re-hashing, post-download checking,
-  and quarantine for integrity mismatches;
+- per-peer sliding-window rate limiting and a read timeout on each connection,
+  so one peer (trusted or not) cannot exhaust the listener with slow or
+  excessive traffic;
+- attachment references carry only a filename, size, and SHA-256 digest inside
+  the encrypted, signed message; the recipient re-hashes the downloaded file
+  and must quarantine any digest or size mismatch before trusting it;
+- an independently encrypted local message history, locked by its own
+  password rather than the device identity password, so a copied history file
+  reveals nothing without it;
+- automated negative and fuzz tests for authorization, malformed frames, and
+  malformed envelopes.
+
+## Controls still planned
+
 - structured local events that exclude private keys and message bodies;
-- automated negative tests for authorization and malformed inputs.
+- failure recovery under full-disk and mid-transfer disconnect conditions.
 
 ## Explicit non-goals for the current version
 

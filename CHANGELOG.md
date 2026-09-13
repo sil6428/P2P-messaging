@@ -15,3 +15,19 @@
 - Added the versioned SQLite schema and idempotent initialization.
 - Added schema and endpoint tests.
 - Documented the initial threat model and milestone plan.
+
+### Milestones 4-7
+
+- Added a local contact book that tracks fingerprint-verification state and
+  excludes unverified contacts from the automatic trust list.
+- Added an interactive `chat` command alongside the one-shot `send`/`listen`
+  commands.
+- Added an encrypted local message history, locked by its own password and
+  independent of the device identity password.
+- Added attachment digest references (filename, size, SHA-256) bound into the
+  signed, encrypted envelope, plus a `verify-attachment` command that
+  quarantines integrity mismatches.
+- Added per-peer sliding-window rate limiting and a per-connection read
+  timeout to the peer transport.
+- Added fuzz-style tests for envelope and frame parsing.
+- Updated the roadmap, threat model, and protocol docs for the above.
