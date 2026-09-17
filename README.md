@@ -21,7 +21,7 @@ the other connects directly using a shared public peer card.
   commands;
 - an encrypted local message history, locked by its own password;
 - attachment digest references (filename, size, SHA-256) bound into a message
-  so a file moved out-of-band can be verified and quarantined on mismatch;
+  so a file moved out-of-band can be verified and rejected on mismatch;
 - 64 KiB frame limits, 4 KiB plaintext limits, recipient checks, persistent
   replay rejection, per-peer rate limiting, and per-connection read timeouts;
 - tests for tampering, expired messages, wrong recipients, unknown peers,
@@ -101,12 +101,12 @@ pytest -q
 The optional local status endpoint remains available with
 `secure-messaging serve` and reports the project's development limits.
 
-The current **63-test** suite covers the CLI and status endpoint, identity
+The current **72-test** suite covers the CLI and status endpoint, identity
 protection, envelope signatures, authenticated encryption, expiration,
 recipient validation, replay persistence, bounded frames, acknowledgements,
 end-to-end local delivery, contact verification state, encrypted local
-history, attachment digest binding, per-peer rate limiting, and fuzzed
-envelope parsing.
+history and its authenticated metadata, attachment digest and filename
+binding, authenticated-peer rate limiting, and fuzzed envelope parsing.
 
 ## Contact verification, history, and attachments
 
@@ -129,11 +129,16 @@ secure-messaging send --identity alice.identity.json --peer bob.peer.json \
 secure-messaging verify-attachment reference.json downloaded-report.pdf
 ```
 
+`verify-attachment` reports `verified`, `integrity_mismatch`, or `quarantined`
+and returns a nonzero exit status when the file cannot be trusted. The current
+command does not move files; automatic transfer and quarantine-directory
+handling remain planned work.
+
 ## Collaborating
 
 [CONTRIBUTING.md](CONTRIBUTING.md) tracks what is still open for another
 contributor: failure recovery under full-disk and mid-transfer disconnect
-conditions, structured local audit events, and full integration with the
+conditions, global connection controls, structured local audit events, and full integration with the
 separate [Secure File Transfer](https://github.com/sil6428/secure-file-transfer)
 project (this repository only carries the digest reference, not the file
 bytes). The current code provides interfaces and tests those pieces can build

@@ -154,6 +154,7 @@ class DecryptedMessage:
     kind: Literal["message", "ack"]
     body: str
     reply_to: str | None
+    sender_signing_key: bytes
     attachment: AttachmentReference | None = None
 
 
@@ -295,5 +296,6 @@ def decrypt_message(
         kind=kind,
         body=body,
         reply_to=reply_to,
+        sender_signing_key=envelope.sender_signing_key,
         attachment=attachment,
     )

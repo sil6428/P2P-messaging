@@ -73,6 +73,10 @@ def verify_attachment(reference: AttachmentReference, path: str | Path) -> Attac
         actual = bind_attachment(path)
     except OSError:
         return AttachmentStatus.QUARANTINED
-    if actual.sha256 != reference.sha256 or actual.size_bytes != reference.size_bytes:
+    if (
+        actual.filename != reference.filename
+        or actual.sha256 != reference.sha256
+        or actual.size_bytes != reference.size_bytes
+    ):
         return AttachmentStatus.INTEGRITY_MISMATCH
     return AttachmentStatus.VERIFIED

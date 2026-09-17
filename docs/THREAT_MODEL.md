@@ -36,22 +36,26 @@ read a device's private identity file is outside the current protection model.
 - signed peer cards and signed, authenticated-encryption envelopes;
 - recipient checks plus bounded message and frame sizes;
 - persistent message identifiers to reject replays after restart;
-- per-peer sliding-window rate limiting and a read timeout on each connection,
-  so one peer (trusted or not) cannot exhaust the listener with slow or
-  excessive traffic;
+- sliding-window rate limiting applied only after a peer authenticates, so a
+  forged sender key cannot consume a trusted peer's allowance; a read timeout
+  also bounds each slow connection, while a global connection cap remains
+  planned;
 - attachment references carry only a filename, size, and SHA-256 digest inside
   the encrypted, signed message; the recipient re-hashes the downloaded file
-  and must quarantine any digest or size mismatch before trusting it;
+  and compares the signed filename, size, and digest before trusting it;
 - an independently encrypted local message history, locked by its own
   password rather than the device identity password, so a copied history file
-  reveals nothing without it;
+  reveals nothing without it; each entry also authenticates its message ID,
+  peer key, and direction as associated data;
 - automated negative and fuzz tests for authorization, malformed frames, and
   malformed envelopes.
 
 ## Controls still planned
 
 - structured local events that exclude private keys and message bodies;
-- failure recovery under full-disk and mid-transfer disconnect conditions.
+- failure recovery under full-disk and interrupted-write conditions;
+- a global cap for concurrent unauthenticated connections;
+- integrated transfer and automatic quarantine-directory handling.
 
 ## Explicit non-goals for the current version
 

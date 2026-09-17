@@ -135,9 +135,9 @@ class PeerServer:
             sender = self._trusted_peers.get(envelope.sender_signing_key)
             if sender is None:
                 raise DeliveryRejected("Unknown peer.")
+            message = decrypt_message(self.identity, sender, envelope)
             if not self._rate_limiter.allow(sender.signing_key):
                 raise DeliveryRejected("Peer exceeded the message rate limit.")
-            message = decrypt_message(self.identity, sender, envelope)
             if message.kind != "message":
                 raise DeliveryRejected("Only direct messages are accepted.")
             if not self.database.claim_message(message.message_id, sender.signing_key):

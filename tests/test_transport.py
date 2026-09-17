@@ -1,6 +1,7 @@
 import asyncio
 import json
 import struct
+from dataclasses import replace
 
 import pytest
 
@@ -112,6 +113,45 @@ def test_listener_rejects_sender_over_the_rate_limit(tmp_path):
             await send_message(alice, bob_card, "two")
             with pytest.raises(DeliveryRejected, match="rejected"):
                 await send_message(alice, bob_card, "three")
+        finally:
+            await server.close()
+
+    asyncio.run(scenario())
+
+
+def test_spoofed_sender_key_does_not_consume_a_trusted_peers_rate_limit(tmp_path):
+    async def exchange_raw(port: int, payload: bytes) -> bytes:
+        reader, writer = await asyncio.open_connection("127.0.0.1", port)
+        try:
+            await write_frame(writer, payload)
+            return await read_frame(reader)
+        finally:
+            writer.close()
+            await writer.wait_closed()
+
+    async def scenario():
+        alice = Identity.create("Alice")
+        mallory = Identity.create("Mallory")
+        bob = Identity.create("Bob")
+        alice_card = alice.peer_card("127.0.0.1:9001")
+        server = PeerServer(
+            bob,
+            [alice_card],
+            Database(tmp_path / "bob.db"),
+            rate_limit_messages=1,
+            rate_limit_window_seconds=60.0,
+        )
+        await server.start("127.0.0.1", 0)
+        try:
+            bob_card = bob.peer_card(f"127.0.0.1:{server.port}")
+            spoofed = replace(
+                encrypt_message(mallory, bob_card, "spoofed"),
+                sender_signing_key=alice.signing_public_key,
+            )
+            assert json.loads(await exchange_raw(server.port, spoofed.to_json().encode())) == {
+                "error": "rejected"
+            }
+            await send_message(alice, bob_card, "real message")
         finally:
             await server.close()
 

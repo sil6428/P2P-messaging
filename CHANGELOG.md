@@ -26,8 +26,20 @@
   independent of the device identity password.
 - Added attachment digest references (filename, size, SHA-256) bound into the
   signed, encrypted envelope, plus a `verify-attachment` command that
-  quarantines integrity mismatches.
+  reports integrity mismatches and unreadable files.
 - Added per-peer sliding-window rate limiting and a per-connection read
   timeout to the peer transport.
 - Added fuzz-style tests for envelope and frame parsing.
+- Required at least eight hexadecimal fingerprint characters when selecting a
+  contact, preventing empty or ambiguous verification input.
+- Bound message IDs, peer keys, and direction into encrypted-history
+  authentication; history passwords now require at least 12 characters.
+- Corrected sent history to retain the original message rather than the
+  acknowledgement, and associated received history with the authenticated
+  sender key rather than a display name.
+- Moved rate-limit accounting after sender authentication so forged envelopes
+  cannot consume a trusted peer's allowance.
+- Bound the signed attachment filename into verification alongside its size
+  and SHA-256 digest.
+- Expanded the automated suite to 72 passing tests.
 - Updated the roadmap, threat model, and protocol docs for the above.

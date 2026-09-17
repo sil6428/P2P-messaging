@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS contacts (
 );
 """
 
+MIN_FINGERPRINT_PREFIX_LENGTH = 8
+
 
 class ContactError(ValueError):
     """Raised when a contact-book operation cannot be completed safely."""
@@ -113,6 +115,12 @@ class ContactBook:
     def find_by_fingerprint_prefix(self, prefix: str) -> PeerCard:
         """Look up a contact by a human-typed prefix of its fingerprint (case- and space-insensitive)."""
         clean_prefix = prefix.replace(" ", "").upper()
+        if len(clean_prefix) < MIN_FINGERPRINT_PREFIX_LENGTH or any(
+            character not in "0123456789ABCDEF" for character in clean_prefix
+        ):
+            raise ContactError(
+                f"Fingerprint prefix must contain at least {MIN_FINGERPRINT_PREFIX_LENGTH} hex characters."
+            )
         matches = [card for card, _ in self.all_contacts() if card.fingerprint.replace(" ", "").startswith(clean_prefix)]
         if not matches:
             raise ContactError("No contact matches that fingerprint.")

@@ -77,6 +77,34 @@ def test_corrupted_entry_is_detected_on_read(tmp_path):
         reopened.entries()
 
 
+def test_history_metadata_tampering_is_detected(tmp_path):
+    import sqlite3
+
+    path = tmp_path / "history.db"
+    message, peer_key = make_message()
+    history = MessageHistory(path)
+    history.unlock("correct horse battery staple")
+    history.record(message, peer_key, "received")
+
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            "UPDATE history_entries SET direction = 'sent' WHERE message_id = ?",
+            (message.message_id,),
+        )
+
+    reopened = MessageHistory(path)
+    reopened.unlock("correct horse battery staple")
+    with pytest.raises(HistoryCorrupted):
+        reopened.entries()
+
+
+def test_short_history_password_is_rejected(tmp_path):
+    history = MessageHistory(tmp_path / "history.db")
+
+    with pytest.raises(HistoryLocked, match="at least 12"):
+        history.unlock("too-short")
+
+
 def test_empty_store_unlocks_with_any_password(tmp_path):
     history = MessageHistory(tmp_path / "history.db")
 

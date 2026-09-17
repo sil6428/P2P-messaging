@@ -15,8 +15,9 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from secure_messaging.protocol import DecryptedMessage
 
-HISTORY_VERSION = 1
+HISTORY_VERSION = 2
 PBKDF2_ITERATIONS = 600_000
+MIN_HISTORY_PASSWORD_LENGTH = 12
 CANARY_PLAINTEXT = b"secure-messaging-history-v1"
 Direction = Literal["sent", "received"]
 
@@ -67,6 +68,20 @@ def _derive_key(password: str, salt: bytes) -> bytes:
     ).derive(password.encode("utf-8"))
 
 
+def _entry_aad(message_id: str, peer_signing_key: bytes, direction: Direction) -> bytes:
+    """Bind encrypted history to the row metadata used to identify it."""
+    return json.dumps(
+        {
+            "direction": direction,
+            "message_id": message_id,
+            "peer_signing_key": peer_signing_key.hex(),
+            "version": HISTORY_VERSION,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
 class MessageHistory:
     """At-rest encrypted local message log.
 
@@ -88,11 +103,16 @@ class MessageHistory:
         message, so a wrong password (`HistoryLocked`) can never be mistaken for a
         corrupted entry (`HistoryCorrupted`) discovered later while reading.
         """
+        if len(password) < MIN_HISTORY_PASSWORD_LENGTH:
+            raise HistoryLocked(
+                f"History password must be at least {MIN_HISTORY_PASSWORD_LENGTH} characters."
+            )
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as connection:
             connection.executescript(SCHEMA)
             row = connection.execute(
-                "SELECT salt, canary_nonce, canary_ciphertext FROM history_meta WHERE id = 1"
+                "SELECT salt, canary_nonce, canary_ciphertext, version "
+                "FROM history_meta WHERE id = 1"
             ).fetchone()
             if row is None:
                 salt = os.urandom(16)
@@ -108,7 +128,12 @@ class MessageHistory:
                 )
                 self._key = key
                 return
-            salt, canary_nonce, canary_ciphertext = row
+            salt, canary_nonce, canary_ciphertext, version = row
+
+        if version != HISTORY_VERSION:
+            raise HistoryLocked(
+                "History format is unsupported; export it with the version that created it."
+            )
 
         key = _derive_key(password, salt)
         try:
@@ -135,7 +160,8 @@ class MessageHistory:
             separators=(",", ":"),
         ).encode("utf-8")
         nonce = os.urandom(12)
-        ciphertext = ChaCha20Poly1305(key).encrypt(nonce, plaintext, None)
+        aad = _entry_aad(message.message_id, peer_signing_key, direction)
+        ciphertext = ChaCha20Poly1305(key).encrypt(nonce, plaintext, aad)
         with self._connect() as connection:
             connection.execute(
                 """
@@ -157,7 +183,8 @@ class MessageHistory:
         results = []
         for message_id, peer_signing_key, direction, nonce, ciphertext in rows:
             try:
-                plaintext = ChaCha20Poly1305(key).decrypt(nonce, ciphertext, None)
+                aad = _entry_aad(message_id, peer_signing_key, direction)
+                plaintext = ChaCha20Poly1305(key).decrypt(nonce, ciphertext, aad)
             except InvalidTag as exc:
                 raise HistoryCorrupted(f"History entry {message_id} failed authentication.") from exc
             payload = json.loads(plaintext)

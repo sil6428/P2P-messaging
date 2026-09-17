@@ -37,6 +37,16 @@ def test_verify_attachment_flags_tampered_file(tmp_path):
     assert verify_attachment(reference, path) == AttachmentStatus.INTEGRITY_MISMATCH
 
 
+def test_verify_attachment_flags_a_renamed_file(tmp_path):
+    original = tmp_path / "report.pdf"
+    renamed = tmp_path / "invoice.exe"
+    original.write_bytes(b"same bytes")
+    reference = bind_attachment(original)
+    original.rename(renamed)
+
+    assert verify_attachment(reference, renamed) == AttachmentStatus.INTEGRITY_MISMATCH
+
+
 def test_verify_attachment_quarantines_missing_file(tmp_path):
     reference = AttachmentReference(filename="missing.txt", size_bytes=0, sha256="0" * 64)
 

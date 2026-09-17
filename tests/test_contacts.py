@@ -71,4 +71,14 @@ def test_find_by_fingerprint_prefix_rejects_unknown_prefix(tmp_path):
     book.initialize()
 
     with pytest.raises(ContactError, match="No contact matches"):
-        book.find_by_fingerprint_prefix("FFFF")
+        book.find_by_fingerprint_prefix("FFFFFFFF")
+
+
+@pytest.mark.parametrize("prefix", ["", " ", "ABCD", "NOT-HEX!"])
+def test_find_by_fingerprint_prefix_rejects_short_or_invalid_input(tmp_path, prefix):
+    book = ContactBook(tmp_path / "contacts.db")
+    book.initialize()
+    book.add(make_card())
+
+    with pytest.raises(ContactError, match="at least 8 hex"):
+        book.find_by_fingerprint_prefix(prefix)

@@ -1,11 +1,14 @@
 import argparse
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
-from secure_messaging.cli import _resolve_trusted_peers, build_parser
+from secure_messaging.cli import _record_sent_message, _resolve_trusted_peers, build_parser
 from secure_messaging.contacts import ContactBook
+from secure_messaging.history import MessageHistory
 from secure_messaging.identity import Identity, IdentityError
+from secure_messaging.protocol import DecryptedMessage
 
 
 def test_identity_init_command_defaults():
@@ -97,3 +100,28 @@ def test_resolve_trusted_peers_rejects_no_trust_sources(tmp_path):
 
     with pytest.raises(IdentityError, match="No trusted peers"):
         _resolve_trusted_peers(args)
+
+
+def test_record_sent_message_stores_original_body_instead_of_acknowledgement(tmp_path):
+    alice = Identity.create("Alice")
+    bob = Identity.create("Bob")
+    bob_card = bob.peer_card("127.0.0.1:9002")
+    history = MessageHistory(tmp_path / "history.db")
+    history.unlock("correct horse battery staple")
+    acknowledgement = DecryptedMessage(
+        message_id="ack-id",
+        sender_name="Bob",
+        sent_at=datetime.now(UTC),
+        kind="ack",
+        body="accepted",
+        reply_to="original-message-id",
+        sender_signing_key=bob.signing_public_key,
+    )
+
+    _record_sent_message(history, alice, bob_card, acknowledgement, "hello Bob")
+
+    [entry] = history.entries()
+    assert entry.message_id == "original-message-id"
+    assert entry.body == "hello Bob"
+    assert entry.direction == "sent"
+    assert entry.peer_signing_key == bob.signing_public_key

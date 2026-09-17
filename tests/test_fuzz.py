@@ -28,7 +28,7 @@ def test_from_json_never_leaks_a_raw_exception_on_random_bytes():
             continue
 
 
-def test_from_dict_rejects_every_single_field_mutation():
+def test_from_dict_field_mutations_never_leak_raw_exceptions():
     rng = random.Random(SEED)
     template = _valid_envelope_dict()
 

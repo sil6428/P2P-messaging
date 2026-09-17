@@ -11,14 +11,20 @@ it changes a trust boundary.
 | 3 | Bounded TCP peer transport and persistent replay protection | Complete |
 | 4 | Contact book with explicit fingerprint-verification state | Complete |
 | 5 | Local conversation UI and encrypted message history | Complete |
-| 6 | Verified attachment transfer and integrity warning states | Complete |
-| 7 | Rate limits, parser fuzzing, failure recovery, packaging | In progress |
+| 6 | Attachment-reference binding and integrity warning states | Complete |
+| 7 | Transport hardening, failure recovery, audit events, packaging | In progress |
+| 8 | Integrated secure file transfer, progress, resume, and quarantine | Planned |
+| 9 | History search/export and contact-safety usability | Planned |
+| 10 | NAT traversal or relay fallback with explicit metadata tradeoffs | Planned |
+| 11 | Maintained standard forward-secret protocol implementation | Research |
 
-Milestone 7 currently covers per-peer rate limiting, slow-client read timeouts,
-and envelope/frame parser fuzz tests; failure recovery (full-disk, mid-transfer
-disconnects) and packaging are still open. See [CONTRIBUTING.md](../CONTRIBUTING.md)
-for acceptance criteria on what remains.
+Milestone 7 currently covers authenticated-peer rate limiting, slow-client read
+timeouts, and envelope/frame parser fuzz tests. Global connection controls,
+failure recovery (full-disk and interrupted writes), structured audit events,
+and packaging remain open. See [CONTRIBUTING.md](../CONTRIBUTING.md) for
+acceptance criteria.
 
 NAT traversal and relay fallback follow only after the local and LAN security
-boundaries are stable. Forward secrecy must use a maintained standard protocol
-implementation; this project will not invent a Double Ratchet substitute.
+boundaries are stable. Forward secrecy must use a maintained, reviewed
+implementation of a standard protocol; this project will not invent a Double
+Ratchet substitute.

@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import getpass
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import uvicorn
@@ -197,7 +198,6 @@ async def _listen(args: argparse.Namespace) -> None:
     identity = _load_identity(args.identity)
     trusted_peers = _resolve_trusted_peers(args)
     history = _open_history(args.history)
-    peers_by_key = {card.signing_key: card for card in trusted_peers}
 
     def show_message(message: DecryptedMessage) -> None:
         timestamp = message.sent_at.strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -205,11 +205,7 @@ async def _listen(args: argparse.Namespace) -> None:
         if message.attachment is not None:
             print(f"  attachment: {message.attachment.filename} ({message.attachment.sha256})")
         if history is not None:
-            sender_key = next(
-                (key for key, card in peers_by_key.items() if card.display_name == message.sender_name),
-                b"",
-            )
-            history.record(message, sender_key, "received")
+            history.record(message, message.sender_signing_key, "received")
 
     server = PeerServer(identity, trusted_peers, Database(args.database), show_message)
     await server.start(args.host, args.port)
@@ -229,6 +225,34 @@ def _build_attachment(path: Path | None) -> AttachmentReference | None:
     return reference
 
 
+def _record_sent_message(
+    history: MessageHistory | None,
+    identity: Identity,
+    peer: PeerCard,
+    acknowledgement: DecryptedMessage,
+    body: str,
+    attachment: AttachmentReference | None = None,
+) -> None:
+    if history is None:
+        return
+    if not acknowledgement.reply_to:
+        raise HistoryError("Delivery acknowledgement did not identify the sent message.")
+    history.record(
+        DecryptedMessage(
+            message_id=acknowledgement.reply_to,
+            sender_name=identity.display_name,
+            sent_at=datetime.now(UTC),
+            kind="message",
+            body=body,
+            reply_to=None,
+            sender_signing_key=identity.signing_public_key,
+            attachment=attachment,
+        ),
+        peer.signing_key,
+        "sent",
+    )
+
+
 async def _send(args: argparse.Namespace) -> None:
     identity = _load_identity(args.identity)
     peer = PeerCard.load(args.peer)
@@ -236,8 +260,7 @@ async def _send(args: argparse.Namespace) -> None:
     attachment = _build_attachment(args.attach)
     acknowledgement = await send_message(identity, peer, args.message, attachment=attachment)
     print(f"Encrypted acknowledgement received from {acknowledgement.sender_name}.")
-    if history is not None:
-        history.record(acknowledgement, peer.signing_key, "sent")
+    _record_sent_message(history, identity, peer, acknowledgement, args.message, attachment)
 
 
 async def _chat(args: argparse.Namespace) -> None:
@@ -251,7 +274,7 @@ async def _chat(args: argparse.Namespace) -> None:
         timestamp = message.sent_at.strftime("%H:%M:%S")
         print(f"\n[{timestamp}] {message.sender_name}: {message.body}\n> ", end="", flush=True)
         if history is not None:
-            history.record(message, peer.signing_key, "received")
+            history.record(message, message.sender_signing_key, "received")
 
     server = PeerServer(identity, [peer], Database(args.database), show_message)
     await server.start(args.host, args.port)
@@ -269,8 +292,7 @@ async def _chat(args: argparse.Namespace) -> None:
             except TransportError as exc:
                 print(f"Could not deliver message: {exc}")
                 continue
-            if history is not None:
-                history.record(acknowledgement, peer.signing_key, "sent")
+            _record_sent_message(history, identity, peer, acknowledgement, line)
     except (KeyboardInterrupt, EOFError):
         print("\nClosing chat.")
     finally:
