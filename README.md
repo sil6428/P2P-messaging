@@ -2,6 +2,8 @@
 
 [![Quality checks](https://github.com/sil6428/P2P-messaging/actions/workflows/quality.yml/badge.svg)](https://github.com/sil6428/P2P-messaging/actions/workflows/quality.yml)
 
+Built collaboratively by Affan Shaikh and Ghayas Sher.
+
 > **Educational work in progress.** This project now supports a small encrypted
 > peer-to-peer demo. It is not independently audited or ready for sensitive use.
 
@@ -139,12 +141,12 @@ handling remain planned work.
 [CONTRIBUTING.md](CONTRIBUTING.md) tracks what is still open for another
 contributor: failure recovery under full-disk and mid-transfer disconnect
 conditions, global connection controls, structured local audit events, and full integration with the
-separate [Secure File Transfer](https://github.com/sil6428/secure-file-transfer)
+separate [Secure File Transfer](https://affan-shaikh.pages.dev/work/secure-file-transfer)
 project (this repository only carries the digest reference, not the file
 bytes). The current code provides interfaces and tests those pieces can build
 on without pretending the project is finished.
 
 ## License
 
-All rights reserved. The code may be shared with authorized portfolio reviewers
-for educational inspection; reuse requires written permission.
+All rights reserved. This repository is public for portfolio and educational
+review; reuse requires written permission.

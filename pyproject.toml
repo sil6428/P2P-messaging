@@ -9,7 +9,10 @@ description = "Work-in-progress security-focused messaging platform"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
-authors = [{ name = "Affan Muhammad Shaikh" }]
+authors = [
+  { name = "Affan Muhammad Shaikh" },
+  { name = "Ghayas Sher" },
+]
 dependencies = [
   "cryptography>=45,<51",
   "fastapi>=0.115,<1",
