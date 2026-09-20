@@ -179,10 +179,11 @@ async def send_message(
     *,
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
     attachment: AttachmentReference | None = None,
+    reply_to: str | None = None,
 ) -> DecryptedMessage:
     peer.verify()
     host, port = parse_endpoint(peer.endpoint)
-    envelope = encrypt_message(identity, peer, body, attachment=attachment)
+    envelope = encrypt_message(identity, peer, body, attachment=attachment, reply_to=reply_to)
 
     async def exchange() -> DecryptedMessage:
         try:

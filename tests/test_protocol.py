@@ -127,6 +127,18 @@ def test_message_without_attachment_decodes_with_none():
     assert message.attachment is None
 
 
+def test_reply_reference_survives_encryption_round_trip():
+    alice = Identity.create("Alice")
+    bob = Identity.create("Bob")
+    alice_card = alice.peer_card("127.0.0.1:9001")
+    bob_card = bob.peer_card("127.0.0.1:9002")
+
+    envelope = encrypt_message(alice, bob_card, "following up", reply_to="earlier-message-id")
+    message = decrypt_message(bob, alice_card, envelope)
+
+    assert message.reply_to == "earlier-message-id"
+
+
 def test_acknowledgements_cannot_carry_an_attachment():
     alice, _, _, bob_card = make_peers()
     reference = AttachmentReference(filename="report.pdf", size_bytes=1024, sha256="ab" * 32)

@@ -13,6 +13,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
+from secure_messaging.attachments import AttachmentReference
 from secure_messaging.protocol import DecryptedMessage
 
 HISTORY_VERSION = 2
@@ -60,6 +61,8 @@ class HistoryEntry:
     sender_name: str
     sent_at: datetime
     body: str
+    attachment: AttachmentReference | None = None
+    reply_to: str | None = None
 
 
 def _derive_key(password: str, salt: bytes) -> bytes:
@@ -156,6 +159,10 @@ class MessageHistory:
                 "sender_name": message.sender_name,
                 "sent_at": message.sent_at.astimezone(UTC).isoformat(timespec="seconds"),
                 "body": message.body,
+                "attachment": (
+                    message.attachment.to_dict() if message.attachment is not None else None
+                ),
+                "reply_to": message.reply_to,
             },
             separators=(",", ":"),
         ).encode("utf-8")
@@ -188,6 +195,11 @@ class MessageHistory:
             except InvalidTag as exc:
                 raise HistoryCorrupted(f"History entry {message_id} failed authentication.") from exc
             payload = json.loads(plaintext)
+            attachment = (
+                AttachmentReference.from_dict(payload["attachment"])
+                if payload.get("attachment") is not None
+                else None
+            )
             results.append(
                 HistoryEntry(
                     message_id=message_id,
@@ -196,6 +208,8 @@ class MessageHistory:
                     sender_name=payload["sender_name"],
                     sent_at=datetime.fromisoformat(payload["sent_at"]),
                     body=payload["body"],
+                    attachment=attachment,
+                    reply_to=payload.get("reply_to"),
                 )
             )
         return results

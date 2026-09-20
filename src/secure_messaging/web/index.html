@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>Relay — Secure peer messaging</title>
+    <link rel="stylesheet" href="/assets/styles.css">
+    <script src="/assets/app.js" defer></script>
+  </head>
+  <body>
+    <section class="auth-shell" id="auth-shell" hidden>
+      <div class="auth-mark" aria-hidden="true">R</div>
+      <main class="auth-card">
+        <div class="eyebrow">LOCAL PEER MESSENGER</div>
+        <h1 id="auth-title">Unlock Relay</h1>
+        <p class="auth-intro" id="auth-intro">Your private keys stay on this computer.</p>
+
+        <form id="login-form" class="stack">
+          <label>Device password<input type="password" name="password" autocomplete="current-password" required></label>
+          <label>History password<input type="password" name="history_password" autocomplete="current-password" required></label>
+          <button class="button primary" type="submit">Unlock workspace</button>
+        </form>
+
+        <form id="setup-form" class="stack" hidden>
+          <label>Display name<input name="display_name" maxlength="80" autocomplete="name" required></label>
+          <label>Listening endpoint<input name="endpoint" value="127.0.0.1:8765" required></label>
+          <label>Device password<input type="password" name="password" minlength="12" autocomplete="new-password" required></label>
+          <label>Confirm device password<input type="password" name="password_confirm" minlength="12" autocomplete="new-password" required></label>
+          <label>History password<input type="password" name="history_password" minlength="12" autocomplete="new-password" required></label>
+          <label class="check-row"><input type="checkbox" id="same-password"> Use the device password for local history</label>
+          <button class="button primary" type="submit">Create local identity</button>
+        </form>
+        <p class="auth-note">Educational software. The protocol has not been independently audited.</p>
+      </main>
+    </section>
+
+    <div class="app-shell" id="app-shell" hidden>
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark">R</span><span>Relay</span></div>
+        <div class="connection" id="connection"><span class="status-dot"></span><span>Checking listener</span></div>
+        <div class="top-actions">
+          <button class="quiet-button" id="show-card-button">My peer card</button>
+          <div class="avatar" id="profile-avatar">A</div>
+          <div class="profile-copy"><strong id="profile-name">User</strong><span>Local device</span></div>
+          <button class="icon-button" id="logout-button" title="Lock workspace" aria-label="Lock workspace">↪</button>
+        </div>
+      </header>
+
+      <aside class="conversation-panel">
+        <div class="panel-heading">
+          <div><span class="eyebrow">INBOX</span><h2>Messages</h2></div>
+          <button class="square-button" id="add-contact-button" title="Add a contact" aria-label="Add a contact">+</button>
+        </div>
+        <label class="search-box"><span>⌕</span><input id="contact-search" type="search" placeholder="Search conversations"></label>
+        <div class="filter-row" role="tablist" aria-label="Conversation filters">
+          <button class="filter active" data-filter="active">Active</button>
+          <button class="filter" data-filter="pinned">Pinned</button>
+          <button class="filter" data-filter="archived">Archived</button>
+        </div>
+        <div class="conversation-list" id="conversation-list"></div>
+        <div class="sidebar-footer"><span>Messages are stored in your encrypted local history.</span></div>
+      </aside>
+
+      <main class="chat-panel">
+        <section class="empty-state" id="empty-state">
+          <div class="empty-lock">R</div>
+          <h2>Select a conversation</h2>
+          <p>Add a signed peer card, compare its fingerprint through another channel, then start a direct encrypted session.</p>
+          <button class="button" id="empty-add-button">Add a trusted peer</button>
+        </section>
+
+        <section class="chat-view" id="chat-view" hidden>
+          <header class="chat-header">
+            <div class="contact-avatar" id="chat-avatar">B</div>
+            <div class="chat-title"><h2 id="chat-name">Contact</h2><span id="chat-security">Fingerprint not verified</span></div>
+            <div class="chat-actions">
+              <label class="message-search"><span>⌕</span><input id="message-search" type="search" placeholder="Search this conversation"></label>
+              <button class="icon-button" id="details-toggle" title="Conversation details" aria-label="Conversation details">•••</button>
+            </div>
+          </header>
+          <div class="message-list" id="message-list" aria-live="polite"></div>
+          <div class="reply-preview" id="reply-preview" hidden>
+            <div><strong id="reply-name"></strong><span id="reply-body"></span></div>
+            <button class="icon-button" id="remove-reply" aria-label="Cancel reply">×</button>
+          </div>
+          <div class="attachment-preview" id="attachment-preview" hidden>
+            <div><strong id="attachment-name"></strong><span id="attachment-meta"></span></div>
+            <button class="icon-button" id="remove-attachment" aria-label="Remove attachment">×</button>
+          </div>
+          <form class="composer" id="composer">
+            <input type="file" id="attachment-input" hidden>
+            <button type="button" class="composer-button" id="attachment-button" title="Bind a file digest">＋</button>
+            <textarea id="message-input" rows="1" maxlength="4096" placeholder="Write an encrypted message" required></textarea>
+            <span class="draft-state" id="draft-state"></span>
+            <button type="submit" class="send-button" aria-label="Send message">Send</button>
+          </form>
+          <p class="composer-note">Files are digest-bound for integrity; automatic byte transfer is still in development.</p>
+        </section>
+      </main>
+
+      <aside class="details-panel" id="details-panel" hidden>
+        <div class="details-heading"><span class="eyebrow">CONVERSATION</span><button class="icon-button" id="details-close" aria-label="Close details">×</button></div>
+        <div class="detail-identity"><div class="large-avatar" id="detail-avatar">B</div><h2 id="detail-name">Contact</h2><span id="detail-endpoint"></span></div>
+        <div class="trust-card" id="trust-card">
+          <div class="trust-title"><span class="status-dot"></span><strong id="trust-state">Unverified contact</strong></div>
+          <p>Compare this fingerprint with the owner over a separate trusted channel.</p>
+          <code id="detail-fingerprint"></code>
+          <button class="button full" id="verify-button">Verify fingerprint</button>
+        </div>
+        <div class="setting-list">
+          <label><span><strong>Pin conversation</strong><small>Keep it at the top</small></span><input type="checkbox" id="pin-toggle"></label>
+          <label><span><strong>Mute conversation</strong><small>Silence local attention cues</small></span><input type="checkbox" id="mute-toggle"></label>
+          <label><span><strong>Archive</strong><small>Move it out of Active</small></span><input type="checkbox" id="archive-toggle"></label>
+        </div>
+        <button class="button full secondary" id="restart-listener">Restart local listener</button>
+      </aside>
+    </div>
+
+    <dialog id="contact-dialog">
+      <form method="dialog" class="dialog-card">
+        <div class="dialog-heading"><div><span class="eyebrow">TRUSTED CONTACTS</span><h2>Add a peer</h2></div><button class="icon-button" value="cancel" aria-label="Close">×</button></div>
+        <p>Ask the contact to share their public peer-card JSON. Importing proves the card was signed; it does not prove who owns it.</p>
+        <label>Peer-card JSON<textarea id="peer-card-input" rows="10" placeholder='{ "display_name": "..." }'></textarea></label>
+        <button type="button" class="button primary full" id="import-contact-button">Import peer card</button>
+        <div class="dialog-divider"><span>then verify separately</span></div>
+        <label>Fingerprint or prefix<input id="verify-fingerprint-input" placeholder="AB12 CD34 …"></label>
+        <button type="button" class="button full" id="verify-contact-button">Mark fingerprint verified</button>
+      </form>
+    </dialog>
+
+    <dialog id="peer-card-dialog">
+      <form method="dialog" class="dialog-card">
+        <div class="dialog-heading"><div><span class="eyebrow">PUBLIC IDENTITY</span><h2>My peer card</h2></div><button class="icon-button" value="cancel" aria-label="Close">×</button></div>
+        <p>Share this public card. Keep your device identity file private.</p>
+        <textarea id="own-peer-card" rows="13" readonly></textarea>
+        <button type="button" class="button primary full" id="copy-card-button">Copy peer card</button>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" hidden></div>
+  </body>
+</html>

@@ -1,7 +1,7 @@
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 SCHEMA = """
 PRAGMA foreign_keys = ON;
@@ -80,6 +80,14 @@ CREATE TABLE IF NOT EXISTS received_message_ids (
     received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS conversation_preferences (
+    peer_signing_key BLOB PRIMARY KEY,
+    pinned INTEGER NOT NULL DEFAULT 0 CHECK(pinned IN (0, 1)),
+    muted INTEGER NOT NULL DEFAULT 0 CHECK(muted IN (0, 1)),
+    archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN (0, 1)),
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_created
     ON messages(conversation_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_audit_events_occurred
@@ -133,3 +141,37 @@ class Database:
         with self.connect() as connection:
             row = connection.execute("SELECT COUNT(*) FROM received_message_ids").fetchone()
         return int(row[0])
+
+    def conversation_preferences(self, peer_signing_key: bytes) -> dict[str, bool]:
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT pinned, muted, archived FROM conversation_preferences "
+                "WHERE peer_signing_key = ?",
+                (peer_signing_key,),
+            ).fetchone()
+        if row is None:
+            return {"pinned": False, "muted": False, "archived": False}
+        return {"pinned": bool(row[0]), "muted": bool(row[1]), "archived": bool(row[2])}
+
+    def update_conversation_preferences(
+        self,
+        peer_signing_key: bytes,
+        *,
+        pinned: bool,
+        muted: bool,
+        archived: bool,
+    ) -> dict[str, bool]:
+        with self.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO conversation_preferences(peer_signing_key, pinned, muted, archived)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(peer_signing_key) DO UPDATE SET
+                    pinned = excluded.pinned,
+                    muted = excluded.muted,
+                    archived = excluded.archived,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (peer_signing_key, int(pinned), int(muted), int(archived)),
+            )
+        return {"pinned": pinned, "muted": muted, "archived": archived}

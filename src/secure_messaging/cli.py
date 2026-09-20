@@ -2,11 +2,14 @@ import argparse
 import asyncio
 import getpass
 import json
+import threading
+import webbrowser
 from datetime import UTC, datetime
 from pathlib import Path
 
 import uvicorn
 
+from secure_messaging.app import create_app
 from secure_messaging.attachments import (
     AttachmentError,
     AttachmentReference,
@@ -127,6 +130,9 @@ def build_parser() -> argparse.ArgumentParser:
     serve = subparsers.add_parser("serve", help="Run the development application")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
+    serve.add_argument("--database", type=Path, default=Path("secure-messaging.db"))
+    serve.add_argument("--workspace", type=Path, default=None)
+    serve.add_argument("--no-open", action="store_true", help="Do not open the browser automatically")
     return parser
 
 
@@ -328,6 +334,22 @@ def main() -> None:
         elif args.command == "verify-attachment":
             _run_verify_attachment(args)
         elif args.command == "serve":
-            uvicorn.run("secure_messaging.app:app", host=args.host, port=args.port)
+            if args.host not in {"127.0.0.1", "localhost", "::1"}:
+                raise SystemExit(
+                    "The browser interface may only bind to this computer. "
+                    "Configure the peer-card endpoint for LAN messaging instead."
+                )
+            if not args.no_open:
+                browser_host = "127.0.0.1" if args.host == "::1" else args.host
+                threading.Timer(
+                    0.8,
+                    webbrowser.open,
+                    args=(f"http://{browser_host}:{args.port}",),
+                ).start()
+            uvicorn.run(
+                create_app(args.database, args.workspace),
+                host=args.host,
+                port=args.port,
+            )
     except (AttachmentError, ContactError, HistoryError, IdentityError, ProtocolError, TransportError) as exc:
         raise SystemExit(f"Error: {exc}") from exc
