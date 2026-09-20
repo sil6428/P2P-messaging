@@ -42,8 +42,8 @@ current process; it does not create an account on a hosted service.
 Messages are end-to-end encrypted between the two demo peers, but the custom
 protocol does **not** provide forward secrecy, automatic key rotation, NAT
 traversal, multi-device support, or independent security assurance. Read
-[the protocol](docs/PROTOCOL.md) and [threat model](docs/THREAT_MODEL.md) before
-using it.
+[the protocol](docs/PROTOCOL.md), [threat model](docs/THREAT_MODEL.md), and
+[peer-project comparison and suggestions](docs/SUGGESTIONS.md) before using it.
 
 ## Install
 
@@ -176,7 +176,9 @@ conditions, global connection controls, structured local audit events, and full 
 separate [Secure File Transfer](https://affan-shaikh.pages.dev/work/secure-file-transfer)
 project (this repository only carries the digest reference, not the file
 bytes). The current code provides interfaces and tests those pieces can build
-on without pretending the project is finished.
+on without pretending the project is finished. The prioritized
+[suggestions document](docs/SUGGESTIONS.md) adds acceptance criteria, a
+red-team checklist, and lessons from maintained messaging projects.
 
 ## License
 

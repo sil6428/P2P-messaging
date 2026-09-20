@@ -30,7 +30,9 @@ now implemented; see [ROADMAP.md](docs/ROADMAP.md). What's still open:
 
 NAT traversal, relay fallback, groups, multi-device identity, and a standard
 forward-secret protocol are later design projects. They should not be slipped
-into a cosmetic pull request.
+into a cosmetic pull request. See [docs/SUGGESTIONS.md](docs/SUGGESTIONS.md) for
+the comparison research, ordered acceptance criteria, and release red-team
+checklist behind these priorities.
 
 ## Definition of done
 
