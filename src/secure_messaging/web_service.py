@@ -143,12 +143,7 @@ class LocalMessagingService:
     async def start_listener(self, session: LocalSession) -> None:
         await self.stop_listener()
         card = PeerCard.load(self.paths.peer_card)
-        advertised_host, port = parse_endpoint(card.endpoint)
-        bind_host = (
-            advertised_host
-            if advertised_host in {"127.0.0.1", "localhost", "::1"}
-            else ("::" if ":" in advertised_host else "0.0.0.0")
-        )
+        bind_host, port = parse_endpoint(card.endpoint)
 
         def record_received(message: DecryptedMessage) -> None:
             session.history.record(message, message.sender_signing_key, "received")
