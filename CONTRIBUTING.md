@@ -7,8 +7,8 @@ production endpoints.
 
 ## Good next pieces for a second contributor
 
-Milestones 4-6 (contact book and verification state, the `chat` interface and
-encrypted local history, and attachment-reference integrity checks) are
+Milestones 4-6 (contact book and verification state, the local browser and CLI
+chat interfaces, encrypted local history, and attachment-reference checks) are
 now implemented; see [ROADMAP.md](docs/ROADMAP.md). What's still open:
 
 1. **Full attachment-transfer integration** — this repository only binds and

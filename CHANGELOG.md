@@ -9,6 +9,20 @@
 
 ## Unreleased
 
+### Local messaging interface
+
+- Added first-time device setup and local unlock without introducing a hosted
+  account service or storing unlock passwords in the application database.
+- Added separate verified-contact conversations, authenticated message replies,
+  encrypted-history search, local drafts, and pinned, muted, and archived controls.
+- Added live peer-listener status, authenticated delivery-state labels, peer
+  card import/export, and fingerprint verification inside the interface.
+- Added browser-side SHA-256 file binding so file bytes remain local while the
+  signed attachment reference travels with the encrypted message.
+- Added HTTP-only same-site sessions and CSRF validation for every state-changing
+  authenticated endpoint.
+- Added browser-flow tests and expanded the automated suite to 75 passing tests.
+
 ### Foundation
 
 - Added the FastAPI application shell and development-status endpoint.
@@ -41,5 +55,5 @@
   cannot consume a trusted peer's allowance.
 - Bound the signed attachment filename into verification alongside its size
   and SHA-256 digest.
-- Expanded the automated suite to 72 passing tests.
+- Expanded the automated suite to 72 passing tests before the browser interface milestone.
 - Updated the roadmap, threat model, and protocol docs for the above.

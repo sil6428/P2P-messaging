@@ -11,6 +11,10 @@ A Python learning project for direct messages between two explicitly trusted
 peers. There is no central message server: one peer listens on a TCP endpoint and
 the other connects directly using a shared public peer card.
 
+The primary interface is now a local browser application. Signing in unlocks
+the password-protected device identity and separately encrypted history for the
+current process; it does not create an account on a hosted service.
+
 ## What works
 
 - password-protected Ed25519 and X25519 device identities;
@@ -22,6 +26,11 @@ the other connects directly using a shared public peer card.
 - an interactive two-way `chat` session, alongside the one-shot `send`/`listen`
   commands;
 - an encrypted local message history, locked by its own password;
+- a local three-panel messaging interface with first-time setup and unlock,
+  separate conversations, authenticated replies, conversation search, drafts, pinned/muted/archived
+  organization, listener status, and clear delivery-acknowledgement state;
+- peer-card import and fingerprint verification in the interface, with sending
+  blocked until the contact has been verified out-of-band;
 - attachment digest references (filename, size, SHA-256) bound into a message
   so a file moved out-of-band can be verified and rejected on mismatch;
 - 64 KiB frame limits, 4 KiB plaintext limits, recipient checks, persistent
@@ -51,6 +60,28 @@ source .venv/bin/activate
 
 python -m pip install -e ".[dev]"
 ```
+
+## Open the local app
+
+```bash
+secure-messaging serve
+```
+
+The command opens `http://127.0.0.1:8000` automatically. On first launch, Relay
+creates a password-protected device identity, a public peer card, and a separate
+encrypted history store. The web interface remains bound to the local computer
+by default; only the peer listener uses the endpoint written in the public card.
+
+In the app:
+
+1. exchange public peer-card JSON with a contact;
+2. compare the displayed fingerprint through a different trusted channel;
+3. mark the matching fingerprint verified;
+4. send while both peer listeners are reachable.
+
+The interface can bind a local file's name, size, and SHA-256 digest into a
+message. It does **not** transfer the file bytes yet; that integration remains a
+separate roadmap item and is labelled as such in the composer.
 
 ## Try two peers locally
 
@@ -100,10 +131,11 @@ ruff check src tests
 pytest -q
 ```
 
-The optional local status endpoint remains available with
-`secure-messaging serve` and reports the project's development limits.
+The machine-readable `/status` endpoint reports the project's implemented
+features and development limits.
 
-The current **72-test** suite covers the CLI and status endpoint, identity
+The current **75-test** suite covers the local browser authentication and CSRF
+boundary, conversation controls, CLI and status endpoint, identity
 protection, envelope signatures, authenticated encryption, expiration,
 recipient validation, replay persistence, bounded frames, acknowledgements,
 end-to-end local delivery, contact verification state, encrypted local

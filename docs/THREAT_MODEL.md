@@ -19,7 +19,10 @@ changes a trust boundary.
 - encrypted network envelope to delivered plaintext;
 - an attachment's digest reference (sent over this protocol) versus the file
   bytes themselves (moved by the separate secure-file-transfer project);
-- the encrypted local history store and its own, separate password.
+- the encrypted local history store and its own, separate password;
+- the browser UI and local FastAPI process. The HTTP interface binds to
+  loopback by default, while the separate peer listener may bind to the LAN
+  endpoint advertised in the public peer card.
 
 ## Initial attacker capabilities
 
@@ -47,6 +50,12 @@ read a device's private identity file is outside the current protection model.
   password rather than the device identity password, so a copied history file
   reveals nothing without it; each entry also authenticates its message ID,
   peer key, and direction as associated data;
+- an HTTP-only, same-site session cookie, an independent per-session CSRF
+  token for mutations, and process-memory-only unlocked keys; sessions do not
+  survive a process restart and the web server is local-only by default;
+- UI sending remains disabled for imported contacts until the user records a
+  separate fingerprint comparison, and digest-only attachments are labelled as
+  references rather than completed file transfers;
 - automated negative and fuzz tests for authorization, malformed frames, and
   malformed envelopes.
 
@@ -63,6 +72,8 @@ read a device's private identity file is outside the current protection model.
 - anonymous communication or traffic-analysis resistance;
 - forward secrecy, post-compromise security, or automatic key rotation;
 - protection after an endpoint or identity file is compromised;
+- protection from malware or a hostile local operating-system account that can
+  inspect the running process, browser, or keystrokes;
 - malware detection or content-safety scanning;
 - guaranteed delivery under unbounded resource exhaustion.
 
