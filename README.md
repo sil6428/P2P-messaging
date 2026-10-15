@@ -1,111 +1,96 @@
-# P2P Messaging
+<div align="center">
+  <h1>P2P Messaging</h1>
+  <p><strong>Verified peers, authenticated encryption, and replay-resistant direct messaging.</strong></p>
+  <p>A collaborative Python security project for sending messages directly between two explicitly trusted peers without a central message server.</p>
 
-[![Quality checks](https://github.com/sil6428/P2P-messaging/actions/workflows/quality.yml/badge.svg)](https://github.com/sil6428/P2P-messaging/actions/workflows/quality.yml)
+  <p>
+    <a href="https://github.com/sil6428/P2P-messaging/actions/workflows/quality.yml"><img alt="Quality checks" src="https://github.com/sil6428/P2P-messaging/actions/workflows/quality.yml/badge.svg"></a>
+    <img alt="Python 3.11 or newer" src="https://img.shields.io/badge/Python-3.11%2B-3776ab?logo=python&amp;logoColor=white">
+    <img alt="Educational work in progress" src="https://img.shields.io/badge/Status-Educational_WIP-f59e0b">
+  </p>
+
+  <p>
+    <a href="docs/PROTOCOL.md">Protocol</a> ·
+    <a href="docs/THREAT_MODEL.md">Threat model</a> ·
+    <a href="SECURITY.md">Security policy</a> ·
+    <a href="CHANGELOG.md">Changelog</a>
+  </p>
+</div>
+
+> [!WARNING]
+> This is an unaudited learning system. It demonstrates secure-communications concepts, but it is not ready for sensitive or production use.
 
 Built collaboratively by Affan Shaikh and Ghayas Sher.
 
-> **Educational work in progress.** This project now supports a small encrypted
-> peer-to-peer demo. It is not independently audited or ready for sensitive use.
-
-A Python learning project for direct messages between two explicitly trusted
-peers. There is no central message server: one peer listens on a TCP endpoint and
-the other connects directly using a shared public peer card.
-
-The primary interface is now a local browser application. Signing in unlocks
-the password-protected device identity and separately encrypted history for the
-current process; it does not create an account on a hosted service.
-
 ## What works
 
-- password-protected Ed25519 and X25519 device identities;
-- self-signed public peer cards with human-checkable fingerprints;
-- a local contact book that tracks whether each imported card's fingerprint was
-  verified out-of-band, and keeps unverified contacts out of the trust list;
-- ChaCha20-Poly1305 message encryption with authenticated routing metadata;
-- Ed25519 envelope signatures and encrypted delivery acknowledgements;
-- an interactive two-way `chat` session, alongside the one-shot `send`/`listen`
-  commands;
-- an encrypted local message history, locked by its own password;
-- a local three-panel messaging interface with first-time setup and unlock,
-  separate conversations, authenticated replies, conversation search, drafts, pinned/muted/archived
-  organization, listener status, and clear delivery-acknowledgement state;
-- peer-card import and fingerprint verification in the interface, with sending
-  blocked until the contact has been verified out-of-band;
-- attachment digest references (filename, size, SHA-256) bound into a message
-  so a file moved out-of-band can be verified and rejected on mismatch;
-- 64 KiB frame limits, 4 KiB plaintext limits, recipient checks, persistent
-  replay rejection, per-peer rate limiting, and per-connection read timeouts;
-- tests for tampering, expired messages, wrong recipients, unknown peers,
-  oversized frames, replay attempts, rate limits, malformed/fuzzed envelopes,
-  and end-to-end delivery.
+- **Protected device identities.** Ed25519 and X25519 private keys are encrypted with a user password.
+- **Explicit peer trust.** Public peer cards include self-signatures and human-checkable fingerprints; sending stays blocked until a fingerprint is verified out of band.
+- **Authenticated messages.** ChaCha20-Poly1305 encrypts message content and routing metadata, while Ed25519 signs each envelope.
+- **Verified delivery.** The sender accepts delivery only after decrypting the recipient's matching acknowledgement.
+- **Persistent replay rejection.** Claimed message IDs survive restarts and repeated envelopes are rejected.
+- **Encrypted local history.** Conversation history uses a separate password and authenticated metadata.
+- **Bounded transport.** The protocol enforces 64 KiB frames, 4 KiB plaintext messages, recipient checks, expiry windows, timeouts, and per-peer rate limits.
+- **Local browser workspace.** Setup, unlock, conversations, replies, search, drafts, pinned/muted/archived controls, listener state, and contact verification are available at `127.0.0.1`.
+- **Attachment integrity references.** A filename, size, and SHA-256 digest can be authenticated inside a message and checked after the file moves through another channel.
 
-Messages are end-to-end encrypted between the two demo peers, but the custom
-protocol does **not** provide forward secrecy, automatic key rotation, NAT
-traversal, multi-device support, or independent security assurance. Read
-[the protocol](docs/PROTOCOL.md), [threat model](docs/THREAT_MODEL.md), and
-[peer-project comparison and suggestions](docs/SUGGESTIONS.md) before using it.
+## How it works
 
-## Install
+```text
+Password-protected device identity
+              ↓
+Verified peer card + out-of-band fingerprint check
+              ↓
+Signed and ChaCha20-Poly1305-encrypted envelope
+              ↓ direct bounded TCP connection
+Recipient, timestamp, signature, encryption, and replay checks
+              ↓
+Encrypted acknowledgement + encrypted local history
+```
+
+There is no hosted account or central message service. One peer listens on a TCP endpoint and the other connects directly using the endpoint and public keys in a shared peer card.
+
+## Open the local app
 
 Requires Python 3.11 or newer.
 
 ```bash
+git clone https://github.com/sil6428/P2P-messaging.git
+cd P2P-messaging
 python -m venv .venv
-
-# Windows PowerShell
-.venv\Scripts\Activate.ps1
-
-# macOS / Linux
-source .venv/bin/activate
-
-python -m pip install -e ".[dev]"
 ```
 
-## Open the local app
-
-```bash
+```powershell
+.venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"
 secure-messaging serve
 ```
 
-The command opens `http://127.0.0.1:8000` automatically. On first launch, Relay
-creates a password-protected device identity, a public peer card, and a separate
-encrypted history store. The web interface remains bound to the local computer
-by default; only the peer listener uses the endpoint written in the public card.
+The app opens at `http://127.0.0.1:8000`. On first launch it creates a password-protected identity, a public peer card, and a separate encrypted history store.
 
-In the app:
+To exchange messages:
 
-1. exchange public peer-card JSON with a contact;
-2. compare the displayed fingerprint through a different trusted channel;
-3. mark the matching fingerprint verified;
-4. send while both peer listeners are reachable.
+1. Exchange public peer-card JSON with the other person.
+2. Compare fingerprints through a different trusted channel.
+3. Mark the matching fingerprint verified.
+4. Keep both peer listeners reachable and send.
 
-The interface can bind a local file's name, size, and SHA-256 digest into a
-message. It does **not** transfer the file bytes yet; that integration remains a
-separate roadmap item and is labelled as such in the composer.
+<details>
+<summary><strong>Try two peers from the command line</strong></summary>
 
-## Try two peers locally
-
-The commands below use separate identities and ports so the complete exchange
-can run on one computer. Enter a different password for each identity and do not
-commit either `*.identity.json` file.
+Create separate local identities:
 
 ```bash
-# Create Alice's private identity and public card
 secure-messaging identity init --name Alice \
   --identity alice.identity.json --card alice.peer.json \
   --endpoint 127.0.0.1:8765
 
-# Create Bob's private identity and public card
 secure-messaging identity init --name Bob \
   --identity bob.identity.json --card bob.peer.json \
   --endpoint 127.0.0.1:8766
 ```
 
-Compare each card's fingerprint with its owner through a separate trusted
-channel. A self-signature only proves the card was not edited after creation; it
-does not prove the owner's identity.
-
-Start Bob's listener in terminal 1:
+Start Bob's listener:
 
 ```bash
 secure-messaging listen --identity bob.identity.json \
@@ -113,74 +98,74 @@ secure-messaging listen --identity bob.identity.json \
   --host 127.0.0.1 --port 8766
 ```
 
-Send from Alice in terminal 2:
+Send from Alice:
 
 ```bash
 secure-messaging send --identity alice.identity.json \
   --peer bob.peer.json --message "hello Bob"
 ```
 
-Bob sees the plaintext only after the trusted-sender, signature, recipient,
-timestamp, authenticated-encryption, and replay checks pass. Alice accepts
-delivery only after decrypting Bob's matching acknowledgement.
+</details>
 
-## Development checks
+## Verified evidence
+
+### Automated tests
 
 ```bash
 ruff check src tests
 pytest -q
 ```
 
-The machine-readable `/status` endpoint reports the project's implemented
-features and development limits.
+The current **75-test** suite covers authentication and CSRF boundaries, identity protection, contact verification, signatures, authenticated encryption, expiry and recipient checks, acknowledgements, persistent replay rejection, encrypted history, attachment references, rate limits, bounded frames, malformed inputs, and end-to-end loopback delivery.
 
-The current **75-test** suite covers the local browser authentication and CSRF
-boundary, conversation controls, CLI and status endpoint, identity
-protection, envelope signatures, authenticated encryption, expiration,
-recipient validation, replay persistence, bounded frames, acknowledgements,
-end-to-end local delivery, contact verification state, encrypted local
-history and its authenticated metadata, attachment digest and filename
-binding, authenticated-peer rate limiting, and fuzzed envelope parsing.
-
-## Contact verification, history, and attachments
+### 5,000-message replay benchmark
 
 ```bash
-# Import a peer card (unverified until you compare fingerprints out-of-band)
-secure-messaging contacts import bob.peer.json --contacts contacts.db
-secure-messaging contacts verify "AB12 CD34" --contacts contacts.db
-secure-messaging contacts list --contacts contacts.db
-
-# Listen using verified contacts instead of --trust files
-secure-messaging listen --identity alice.identity.json --contacts contacts.db \
-  --database alice-state.db --history alice-history.db
-
-# Two-way interactive session instead of one-shot send/listen
-secure-messaging chat --identity alice.identity.json --peer bob.peer.json
-
-# Bind a file's digest to a message, then verify it after it arrives out-of-band
-secure-messaging send --identity alice.identity.json --peer bob.peer.json \
-  --message "see attached" --attach report.pdf
-secure-messaging verify-attachment reference.json downloaded-report.pdf
+python scripts/run_message_benchmark.py --messages 5000 --workers 32
 ```
 
-`verify-attachment` reports `verified`, `integrity_mismatch`, or `quarantined`
-and returns a nonzero exit status when the file cannot be trusted. The current
-command does not move files; automatic transfer and quarantine-directory
-handling remain planned work.
+The verified loopback run:
 
-## Collaborating
+- accepted **5,000** unique messages;
+- validated **5,000** encrypted acknowledgements;
+- rejected **5,000** replay attempts; and
+- persisted exactly **5,000** unique message IDs.
 
-[CONTRIBUTING.md](CONTRIBUTING.md) tracks what is still open for another
-contributor: failure recovery under full-disk and mid-transfer disconnect
-conditions, global connection controls, structured local audit events, and full integration with the
-separate [Secure File Transfer](https://affan-shaikh.pages.dev/work/secure-file-transfer)
-project (this repository only carries the digest reference, not the file
-bytes). The current code provides interfaces and tests those pieces can build
-on without pretending the project is finished. The prioritized
-[suggestions document](docs/SUGGESTIONS.md) adds acceptance criteria, a
-red-team checklist, and lessons from maintained messaging projects.
+Every accepted delivery crossed the real TCP transport and passed peer-card verification, Ed25519 signature validation, X25519 key agreement, ChaCha20-Poly1305 decryption, and persistent message-ID claiming. Review the machine-readable evidence in [`results/message-replay-benchmark.json`](results/message-replay-benchmark.json).
 
-## License
+## Security boundaries
 
-All rights reserved. This repository is public for portfolio and educational
-review; reuse requires written permission.
+The project intentionally does **not** claim:
+
+- forward secrecy or automatic key rotation;
+- NAT traversal or relay infrastructure;
+- multi-device identity synchronization;
+- automatic attachment transfer;
+- independent security review; or
+- production availability guarantees.
+
+A self-signed peer card proves that the card was not edited after signing; it does not prove who owns the key. Users still need an out-of-band fingerprint comparison. Read the [threat model](docs/THREAT_MODEL.md) and [protocol notes](docs/PROTOCOL.md) before experimenting with the system.
+
+## Development
+
+### Repository map
+
+| Path | Purpose |
+| --- | --- |
+| `src/secure_messaging/identity.py` | Device identities, peer cards, key protection, and fingerprints |
+| `src/secure_messaging/protocol.py` | Signed and encrypted message envelopes |
+| `src/secure_messaging/transport.py` | Bounded TCP framing, listeners, delivery, and acknowledgements |
+| `src/secure_messaging/contacts.py` | Imported contacts and out-of-band verification state |
+| `src/secure_messaging/history.py` | Password-protected local conversation history |
+| `src/secure_messaging/attachments.py` | Attachment-digest references and verification |
+| `src/secure_messaging/web_service.py` | Local browser workspace and API boundary |
+| `tests/` | Protocol, transport, web, storage, fuzz, and CLI coverage |
+| `scripts/` | Reproducible benchmark tooling |
+
+The machine-readable `/status` endpoint reports implemented features and known limits. [CONTRIBUTING.md](CONTRIBUTING.md) tracks the open recovery, audit, connection-control, and file-transfer work.
+
+## Status and licence
+
+P2P Messaging is a collaborative educational work in progress. Attachment bytes still move through a separate channel; this repository authenticates only their references. Integration with the separate Secure File Transfer project remains planned.
+
+All rights reserved. The repository is public for portfolio and educational review; reuse requires written permission. See [`LICENSE`](LICENSE).
