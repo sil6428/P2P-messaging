@@ -9,6 +9,14 @@
 
 ## Unreleased
 
+### Reliability and benchmark evidence
+
+- Closed SQLite connections deterministically so repeated message processing
+  does not leave database handles open on Windows.
+- Added a reproducible 5,000-message loopback benchmark that verifies every
+  encrypted acknowledgement and then confirms persistent rejection of 5,000
+  captured-envelope replay attempts.
+
 ### Local messaging interface
 
 - Added first-time device setup and local unlock without introducing a hosted

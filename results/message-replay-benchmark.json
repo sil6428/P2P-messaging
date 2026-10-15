@@ -1,0 +1,18 @@
+{
+  "all_verified": true,
+  "authenticated_acknowledgements_verified": 5000,
+  "authenticated_messages_accepted": 5000,
+  "delivery_duration_seconds": 70.3015,
+  "duration_seconds": 88.1058,
+  "generated_at": "2026-10-10T02:47:17.571669Z",
+  "message_count": 5000,
+  "persisted_unique_message_ids": 5000,
+  "platform": "Windows-11-10.0.26300-SP0",
+  "protocol": "loopback TCP with Ed25519 signatures, X25519 key agreement, ChaCha20-Poly1305 authenticated encryption, authenticated acknowledgements, and SQLite-backed replay rejection",
+  "python": "3.12.14",
+  "replay_attempts": 5000,
+  "replay_attempts_rejected": 5000,
+  "replay_duration_seconds": 16.2817,
+  "validated_protocol_operations": 10000,
+  "worker_count": 32
+}

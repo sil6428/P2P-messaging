@@ -1,4 +1,5 @@
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 SCHEMA_VERSION = 3
@@ -108,7 +109,7 @@ class Database:
 
     def initialize(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self.connect() as connection:
+        with closing(self.connect()) as connection, connection:
             connection.executescript(SCHEMA)
             connection.execute(
                 "INSERT OR IGNORE INTO schema_versions(version) VALUES (?)",
@@ -116,7 +117,7 @@ class Database:
             )
 
     def table_names(self) -> set[str]:
-        with self.connect() as connection:
+        with closing(self.connect()) as connection:
             rows = connection.execute(
                 "SELECT name FROM sqlite_master WHERE type = 'table'"
             ).fetchall()
@@ -124,13 +125,13 @@ class Database:
 
     def claim_message(self, message_id: str, sender_signing_key: bytes) -> bool:
         """Persist a received identifier exactly once, including across restarts."""
-        with self.connect() as connection:
+        with closing(self.connect()) as connection, connection:
             try:
                 connection.execute(
                     """
-                    INSERT INTO received_message_ids(message_id, sender_signing_key)
-                    VALUES (?, ?)
-                    """,
+                        INSERT INTO received_message_ids(message_id, sender_signing_key)
+                        VALUES (?, ?)
+                        """,
                     (message_id, sender_signing_key),
                 )
             except sqlite3.IntegrityError:
@@ -138,12 +139,12 @@ class Database:
         return True
 
     def received_message_count(self) -> int:
-        with self.connect() as connection:
+        with closing(self.connect()) as connection:
             row = connection.execute("SELECT COUNT(*) FROM received_message_ids").fetchone()
         return int(row[0])
 
     def conversation_preferences(self, peer_signing_key: bytes) -> dict[str, bool]:
-        with self.connect() as connection:
+        with closing(self.connect()) as connection:
             row = connection.execute(
                 "SELECT pinned, muted, archived FROM conversation_preferences "
                 "WHERE peer_signing_key = ?",
@@ -161,17 +162,17 @@ class Database:
         muted: bool,
         archived: bool,
     ) -> dict[str, bool]:
-        with self.connect() as connection:
+        with closing(self.connect()) as connection, connection:
             connection.execute(
                 """
-                INSERT INTO conversation_preferences(peer_signing_key, pinned, muted, archived)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT(peer_signing_key) DO UPDATE SET
-                    pinned = excluded.pinned,
-                    muted = excluded.muted,
-                    archived = excluded.archived,
-                    updated_at = CURRENT_TIMESTAMP
-                """,
+                    INSERT INTO conversation_preferences(peer_signing_key, pinned, muted, archived)
+                    VALUES (?, ?, ?, ?)
+                    ON CONFLICT(peer_signing_key) DO UPDATE SET
+                        pinned = excluded.pinned,
+                        muted = excluded.muted,
+                        archived = excluded.archived,
+                        updated_at = CURRENT_TIMESTAMP
+                    """,
                 (peer_signing_key, int(pinned), int(muted), int(archived)),
             )
         return {"pinned": pinned, "muted": muted, "archived": archived}
